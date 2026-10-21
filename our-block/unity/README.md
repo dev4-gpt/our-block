@@ -1,8 +1,8 @@
-# OUR BLOCK Unity client — source provided, builds unverified
+# OUR BLOCK Unity client — Mac cloud build verified, gameplay unverified
 
 This is a desktop client for the same Node server and persistent towns as the browser. It contains procedural 3D districts, Input System movement, an orbit/follow camera, interactive action panels, inventory, projects, ledger, radio, spending approval and seat recovery. The server remains authoritative.
 
-No Unity editor is installed at the standard location on the development Mac. Package resolution, editor compilation, player builds, rendering and mixed browser/Unity sessions have **not** been verified. Do not ship these sources as a tested desktop release.
+No Unity editor is installed at the standard location on the development Mac. Unity Build Automation build #2 at c41b1c1 succeeded on October 21, 2026: package resolution, editor compilation and Mac player export passed. The downloaded 46.04 MB ZIP contains a universal Intel/Apple Silicon executable (110 MB extracted). Rendering and mixed browser/Unity sessions have **not** been verified. Do not ship these sources as a tested desktop release.
 
 Pinned editor: Unity **6000.3.25f1**, verified in [official release notes](https://unity.com/releases/editor/whats-new/6000.3.25f1). Package manifest selects URP 17.3.0, Input System 1.20.1 and Newtonsoft JSON 3.2.1. [Unity 6.3 URP documentation](https://docs.unity3d.com/6000.3/Documentation/Manual/com.unity.render-pipelines.universal.html) identifies the 17.3 series; [Input System documentation](https://docs.unity3d.com/6000.3/Documentation/Manual/com.unity.inputsystem.html) lists 1.20.1. The editor must resolve and lock transitive dependencies before a reproducible release.
 
@@ -21,7 +21,7 @@ Required acceptance: compile without warnings requiring fixes; create/join/recov
 
 Keep Unity cloud builds disabled until the account dashboard confirms free license eligibility, included builder minutes, exact editor availability, repository access, artifact access and a hard stop before paid overages. If any requirement cannot be confirmed, retain source and ship the browser prototype. Do not substitute a paid VM or trial.
 
-Account verification (October 20, 2026): the signed-in DevOps dashboard reports Free tier, 100 unused Mac minutes, 200 unused Windows minutes, 100 unused Linux minutes, 25 GB storage and 100 GB egress. The OUR BLOCK cloud project exists (78500391-7ea3-4fcf-9e81-1f2b64a89404). The user installed an Ed25519 read-only deploy key and Unity confirmed repository access. Target `our-block-mac-arm-manual` uses the exact pinned editor (confirmed available), Sequoia, Apple-Silicon editor and Mac Standard free-eligible compute. Build #1 has been manually queued; compilation remains unverified. Automatic builds/schedules are off. Free-plan concurrency is fixed at two; submit only one build at a time. [Free-plan lock behavior](https://docs.unity.com/en-us/devops/pricing/free-plan) prevents continued service after exceeding allowances without an upgrade.
+Account verification (October 20, 2026): the signed-in DevOps dashboard reports Free tier, 100 unused Mac minutes, 200 unused Windows minutes, 100 unused Linux minutes, 25 GB storage and 100 GB egress. The OUR BLOCK cloud project exists (78500391-7ea3-4fcf-9e81-1f2b64a89404). The user installed an Ed25519 read-only deploy key and Unity confirmed repository access. Target `our-block-mac-arm-manual` uses the exact pinned editor (confirmed available), Sequoia, Apple-Silicon editor and Mac Standard free-eligible compute. Build #1 failed from late input configuration; corrected clean build #2 succeeded. Total reported billable duration was 6m28s across both attempts, within the 100-minute Mac allowance. Automatic builds/schedules are off. Free-plan concurrency is fixed at two; submit only one build at a time. [Free-plan lock behavior](https://docs.unity.com/en-us/devops/pricing/free-plan) prevents continued service after exceeding allowances without an upgrade.
 
 Prepared manual configuration (not yet enabled):
 - Repository project subdirectory: `our-block/unity`.
@@ -34,4 +34,11 @@ Prepared manual configuration (not yet enabled):
 
 The hook writes a public ServerConfig resource; the desktop client reads it at startup. Shared content is exported and committed in advance. Compilation and package resolution happen before the pre-export hook; fix failures from the build log before spending minutes on another build. The included shell hook enables the Input System before compilation.
 
-Cloud compilation has not been run. It provides no interactive editor session. A successful build is not proof of playability: download and run the macOS app, join a browser town, complete a project and test reconnect. Windows remains experimental until run on Windows. Code signing/notarization and app-store distribution are outside this $0 prototype; do not bypass operating-system security warnings through automation.
+Cloud compilation succeeded; it provides no interactive editor session. A successful build is not proof of playability: download and run the macOS app, join a browser town, complete a project and test reconnect. Windows remains experimental until run on Windows. Code signing/notarization and app-store distribution are outside this $0 prototype; do not bypass operating-system security warnings through automation.
+
+
+## Mac build #2
+
+[Unity build result](https://cloud.unity.com/organizations/2476068280189/projects/78500391-7ea3-4fcf-9e81-1f2b64a89404/cloud-build/buildtargets/our-block-mac-arm-manual/builds/2). Source commit c41b1c15b833e7853b2a59812652e87b84ae7674. The pre-build path is relative to the Unity project subfolder, not the repository root. Committed ProjectSettings.asset enables both input backends before editor compilation; changing that only during export caused the first failure.
+
+Downloaded ZIP remains in the user's Downloads directory; extracted prototype is in ignored root backups/unity-builds/build-2/OurBlock.app. It has an ad-hoc signature and no Developer ID notarization. The user reported macOS Gatekeeper's unverified-developer warning at launch. Do not remove quarantine, bypass security prompts or claim desktop playability. A user-controlled launch decision is required before rendering and mixed-client tests can continue. No editor was installed locally, no paid account upgrade was made, and Windows has not been built.
