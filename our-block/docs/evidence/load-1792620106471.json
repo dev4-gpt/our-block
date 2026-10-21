@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-21T22:01:46.471Z",
+  "scope": "local SQLite rehearsal",
+  "origin": "http://127.0.0.1:3018",
+  "budget": 25000000,
+  "sparse": true,
+  "forecastBytes": 20000000,
+  "sourceRef": "1c13033",
+  "totalBytes": 1276479,
+  "aborted": "Stopped by operator; partial run retained.",
+  "reports": [],
+  "limitations": [
+    "Synthetic clients; not physical-device or unfamiliar-player evidence.",
+    "State metric is delay after acknowledgment until matching full snapshot, not synchronized one-way latency.",
+    "No production capacity increase is authorized by this report alone."
+  ]
+}
