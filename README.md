@@ -2,6 +2,8 @@
 
 ## OUR BLOCK — educational cooperative town
 
+Public prototype: https://our-block-1ooe.onrender.com (free hosting may take about a minute to wake).
+
 Source: `our-block/`. Default local URL: http://localhost:3001.
 
 ```sh

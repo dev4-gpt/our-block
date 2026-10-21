@@ -1,6 +1,8 @@
 # OUR BLOCK
 
-A local playable browser prototype of a persistent 3D youth cooperative for one to four friends. Explore six districts, earn fictional credits, inspect claims, grow supplies, complete projects and make shared spending decisions.
+A playable browser prototype of a persistent 3D youth cooperative for one to four friends. Explore six districts, earn fictional credits, inspect claims, grow supplies, complete projects and make shared spending decisions.
+
+Public prototype: https://our-block-1ooe.onrender.com. Runs on Render Free with Neon persistence; see [deployment verification and remaining gates](docs/CLOUD_DEPLOYMENT.md).
 
 ## Run
 

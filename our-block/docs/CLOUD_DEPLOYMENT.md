@@ -56,10 +56,32 @@ The second command assumes a disposable local Postgres instance, not the live Ne
 
 Check Render instance hours/build bandwidth and Neon storage/compute dashboards before and after playtests. Stop or reduce usage when nearing free limits; do not upgrade automatically. Free services may sleep or suspend. A roughly one-minute wake-up is acceptable for this prototype, not a production uptime promise.
 
-## Current external gates
+## Deployed prototype and remaining gates
 
-Render, Neon and Unity showed login screens at inspection. The private source repository is https://github.com/dev4-gpt/our-block (default branch codex/cloud-hosting). No Render service, Neon project or Unity build was provisioned during local preparation. Public URL, cloud redeploy survival and external-network gameplay remain unverified until accounts are connected.
+Public browser: https://our-block-1ooe.onrender.com
+
+Private source: https://github.com/dev4-gpt/our-block, default branch codex/cloud-hosting.
+
+Provisioned October 20, 2026:
+- Render service our-block (srv-dbc2vsrrjlhs73al2vvg): Free Docker instance, Oregon, manual deployments, no disk. Workspace had 750 unused free instance hours and no card on file at provisioning. Existing jobvis service was not changed.
+- Neon project OUR BLOCK (falling-brook-19459565): Free plan, AWS Oregon, Postgres 18. Existing Stratos project was not changed. Pooled connection is stored only in Render's secret DATABASE_URL.
+- Public health check, 3D browser entry, and four simultaneous WebSocket residents passed. A full garden commission included inspection, diagnosis, price comparison, teammate-approved connector purchase and repair; final shared balance was 337 credits.
+- Manual Render redeploy passed: the same private player token recovered its seat, completed garden and 337-credit balance from Neon.
+- The four clients used one development machine/network. Separate physical devices, separate networks, actual phone performance, learning-transfer testing, and idle-sleep recovery remain release gates.
+- Local localhost towns have not been imported. Their backups and recovery secrets remain private and excluded from GitHub.
+
+Repeat the public smoke check deliberately (it creates a test town):
+
+```sh
+node --import tsx scripts/cloud-smoke.ts https://our-block-1ooe.onrender.com
+# After a manual redeploy, verify the same private saved seat:
+node --import tsx scripts/cloud-smoke.ts https://our-block-1ooe.onrender.com --recover
+```
+
+Private recovery data is saved mode 0600 under ignored root backups/. Do not publish it.
+
+Unity: the user's welcome PDF confirms Student plan access and a free Synty bundle offer, but does not establish cloud-build minutes, supported builders or a hard spending stop. Unity's browser session still requires sign-in. No Unity builds or paid services are enabled. The private PDF and its coupon are excluded from GitHub.
 
 Postgres records carry an internal storage_version separate from the public protocol revision. Version-checked writes reject stale overlapping servers instead of overwriting newer saves. This guards accidental deploy overlap; it does not implement multi-replica simulation.
 
-Local verification: 33 tests passed with real Postgres, including four WebSocket clients and process restart. SQLite-specific checks also passed. Browser refresh and automatic seat recovery after a controlled restart were observed. These are local checks, not evidence of a Render/Neon deployment.
+Local verification: 33 tests passed with real Postgres, including four WebSocket clients and process restart. SQLite-specific checks also passed. Browser refresh and automatic seat recovery after a controlled restart were observed.

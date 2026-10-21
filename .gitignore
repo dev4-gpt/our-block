@@ -16,3 +16,5 @@ backups/
 
 **/backups/
 **/*.backup.json
+
+/Welcome to the Unity Student plan!.pdf
