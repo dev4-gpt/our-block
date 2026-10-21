@@ -31,16 +31,16 @@ The first four-client, 20-second local rehearsal: 37 actions, acknowledgment p95
 
 | Gate | Required observation | Status |
 |---|---|---|
-| Candidate deployment | private cloud backup; manual deploy exact tested commit; health and independent network project; recover after redeploy | Commit 7a15477 deployed on Render Free; old town recovered; four synthetic public residents completed garden; follow-up phone update tracked separately |
+| Candidate deployment | private cloud backup; manual deploy exact tested commit; health and independent network project; recover after redeploy | Commit 1884242 deployed on Render Free; saved seat, completed garden and 337 credits recovered after redeploy; earlier four synthetic public residents completed garden |
 | Two devices | complete a project on physical devices on different networks | Unverified |
 | Unfamiliar play | 5 pairs; 4 finish repair within 10 minutes without instruction; both contribute; 3 voluntarily continue | Unverified |
 | Transfer | new objects/claims prompt inspection, independent verification and recovery; no recall quiz | Unverified |
 | Mobile | actual midrange phone, 375px layout, 30 FPS for 10 minutes; keyboard/focus/reduced-motion/sound-off/map checks | User confirmed phone opens and district-button movement works; 375px desktop iframe and keyboard entry checked; model/FPS and complete device gate still unverified |
-| Warm load | <=10 seconds on a defined 10 Mbps connection, server already ready | Unverified |
+| Warm load | <=10 seconds on a defined 10 Mbps connection, server already ready | Asset-only rehearsal: 783,485 decoded bytes in 1.161 seconds at a 10 Mbps consumption cap; browser rendering, external fonts and physical-phone gate still unverified |
 | Cold wake | genuine idle sleep and wake, interrupted connections, manual retry after 90 seconds | Current candidate unverified on Render |
 | Public capacity | 4,20,50,100 clients, up to 5 minutes/stage; publish only largest passing stage within quota | Four-player default retained; public stages open |
 | Soak | one uninterrupted local hour with the final candidate | Open |
-| Restore | both backends: receipts and balances survive restored snapshot; repeat release against private production backup | Automated disposable-backend coverage; production rehearsal open |
+| Restore | both backends: receipts and balances survive restored snapshot; repeat release against private production backup | Automated coverage plus private production-backup restoration verified: six towns and nine durable receipts |
 | Submission assets | 1200×800 original cover; ~90 seconds actual gameplay; <=500-character description; verified public URL | Preparation ongoing; no submission sent |
 
 ## Execution order
@@ -73,3 +73,5 @@ Follow-up local stage results (one minute each): 4 / 20 / 50 / 100 clients passe
 A one-hour local **baseline** soak uses the first candidate's more frequent movement-save path. Its report must be read with that version distinction; follow-up persistence/UI changes have their own regression and staged checks. A complete release still requires the unverified human and device gates.
 
 Use `npm run verify:backup -- /private/backup.backup.json` to restore into an isolated temporary database and compare balances, ownership, contracts, cumulative totals and durable receipts without printing secrets. An immutable pre-schema-2 database copy and source archive are kept separately from rolling release-backup retention.
+
+October 21 follow-up deployment: Render deployment `dep-dbcgggom7kps739tmjpg` reports Live at commit `1884242bd365721320f5fe846b4f822aedacdb90`. Phone instructions are published; user confirmed district-button movement on a phone. Fresh private release backup restored successfully before deploying, and a saved public test seat recovered its completed garden and 337 credits afterward. Public asset hashes match the tested build. The asset-only transfer rehearsal excludes cold wake, external fonts, rendering and phone hardware. The baseline one-hour soak remains running as of this note; no result is claimed.
