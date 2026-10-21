@@ -7,7 +7,7 @@
     "dev": "node --import tsx server/index.ts",
     "build": "tsc --noEmit && vite build",
     "start": "node --import tsx server/index.ts --production",
-    "test": "node --import tsx --test tests/*.test.ts",
+    "test": "node --import tsx --test tests/*.test.ts tests/*.test.tsx",
     "export:unity": "node --import tsx scripts/export-content.ts",
     "format": "prettier --write \"{shared,server,src,tests,scripts}/**/*.{ts,tsx,css}\"",
     "migrate:cloud": "node --import tsx scripts/migrate-storage.ts",

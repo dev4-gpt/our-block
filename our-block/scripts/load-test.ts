@@ -41,6 +41,12 @@ let bytes = 0,
   proc: ChildProcess | undefined,
   temporary: string | undefined,
   aborted: string | undefined;
+process.on("SIGINT", () => {
+  aborted = "Interrupted by operator; partial run retained.";
+});
+process.on("SIGTERM", () => {
+  aborted = "Stopped by operator; partial run retained.";
+});
 const peers: Peer[] = [],
   groups: Peer[][] = [],
   reports: any[] = [];

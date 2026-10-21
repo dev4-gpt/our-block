@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-21T21:37:58.543Z",
+  "scope": "local SQLite partial sparse rehearsal",
+  "origin": "http://localhost:3018",
+  "budget": 25000000,
+  "totalBytes": 1931544,
+  "serverOutgoingBytes": 931544,
+  "accounting": "Conservatively charged server outgoing bytes plus 1 MB for commands and health polling; harness stopped before its final report.",
+  "aborted": "Stopped intentionally to freeze final candidate after refund projection and provenance validation updates.",
+  "sourceRef": "e2f1ef2",
+  "reports": []
+}

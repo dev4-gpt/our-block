@@ -277,3 +277,15 @@ test("disconnect and shutdown cannot overwrite an ambiguously committed transact
   assert.equal(persisted.players[0].money, 8);
   assert.equal(persisted.players[0].online, false);
 });
+
+test("schema-2 fixture migrates to provenance-safe schema 3 without inventing receipts", () => {
+  const old = JSON.parse(
+    readFileSync(new URL("./fixtures/schema-2.json", import.meta.url), "utf8"),
+  );
+  const t = restore(old);
+  assert.equal(t.schema, 3);
+  assert.equal(t.funds, old.funds);
+  assert.deepEqual(t.lots, []);
+  assert.equal(t.players[0].bag.connector, 1);
+  assert.equal(t.totalsComplete, true);
+});

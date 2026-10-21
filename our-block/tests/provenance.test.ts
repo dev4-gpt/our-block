@@ -156,3 +156,42 @@ test("one pack assembled from two payers refunds each actual contribution", () =
   assert.equal(f.t.funds, 296);
   assert.equal(f.t.lots.length, 0);
 });
+
+test("malformed schema-3 provenance is rejected without mutating the source", () => {
+  const f = fixture();
+  f.at(0, -12);
+  f.act("buy", { target: "connector" });
+  const raw = structuredClone(f.t);
+  raw.lots[0].qty = 2;
+  const before = structuredClone(raw);
+  assert.throws(() => restore(structuredClone(raw)), /refundable inventory/);
+  assert.deepEqual(raw, before);
+  raw.lots[0].payer = "missing";
+  assert.throws(() => restore(raw), /provenance/);
+});
+test("pending, distance, funds and full inventory failures have actionable codes", () => {
+  const f = fixture();
+  assert.throws(
+    () => f.act("buy", { target: "connector" }),
+    (e: any) => e.code === "DISTANCE",
+  );
+  f.at(0, -12);
+  f.t.funds = 0;
+  assert.throws(
+    () => f.act("buy", { target: "connector" }),
+    (e: any) => e.code === "INSUFFICIENT_FUNDS",
+  );
+  f.t.funds = 300;
+  f.t.players[0].bag = { tool: 8 };
+  assert.throws(
+    () => f.act("buy", { target: "connector" }),
+    (e: any) => e.code === "INVENTORY_FULL",
+  );
+  f.t.players[0].bag = {};
+  f.t.players[1].online = true;
+  f.act("buy", { target: "connector" });
+  assert.throws(
+    () => f.act("buy", { target: "seed" }),
+    (e: any) => e.code === "PENDING_APPROVAL",
+  );
+});

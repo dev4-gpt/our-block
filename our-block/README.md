@@ -49,7 +49,7 @@ The network suite binds port 3012 and uses a temporary database. It tests four r
 
 The Node server owns movement paths, inventory, economy, deadlines and approvals. Commands use protocol version 1, unique action IDs and expected revisions. Economic actions are committed transactionally before acknowledgment, including durable receipts. Movement and pings are accepted in memory and saved periodically. Movement/crop clock snapshots are saved every two seconds. A crash can lose up to two seconds of movement or growth, not an acknowledged purchase. Restarts disconnect all seats until recovered and cancel unfinished purchase requests.
 
-Saves use schema 2. Older schema-1 saves migrate on load and retain their balances and belongings; incomplete historical totals are labeled. Unknown schemas reject loading that town rather than overwrite it. Snapshot projection excludes seat tokens and duplicate-action history.
+Saves use schema 3. Older schema-1/schema-2 saves migrate on load and retain their balances and belongings; incomplete historical totals are labeled. Unknown schemas reject loading that town rather than overwrite it. Snapshot projection excludes seat tokens and duplicate-action history.
 
 Dockerfile and render.yaml are included. The updated Render blueprint uses Free compute and requires a server-only DATABASE_URL for Neon Postgres; the existing public prototype is deployed, but this release candidate requires its own backup and manual redeploy. Local development still uses SQLite. Keep one replica. See [cloud deployment runbook](docs/CLOUD_DEPLOYMENT.md). /health reports process status. Back up SQLite before upgrades. Modest local rate limits and a 500-town ceiling are for prototype evaluation, not large public matchmaking.
 
@@ -62,3 +62,10 @@ Release readiness is tracked in [the release plan and evidence](docs/RELEASE_PLA
 No learning-effectiveness or prize guarantee is claimed. See GAME_DESIGN.md and PROTOCOL.md for content and integration details.
 
 World generation research and concrete shared-world changes: [WorldClaw review](docs/WORLDCLAW_REVIEW.md). No Tencent scene, model weight or code was imported.
+
+
+Polish candidate: Explore has Town / Activities / Shop navigation. Purchases open a review sheet before sending; shared requests appear in the Decisions inbox on every tab. Rule errors do not suggest reconnecting. Rendering errors switch to the accessible map; a slow module offers it after 15 seconds.
+
+Schema 3 adds server-owned refundable purchase lots, project contributions and outcome summaries. Purchase lots retain paid price, original payer and inventory location through gifts/storage. Free/legacy units are consumed first, then oldest purchased units. Only a complete unused purchased offer quantity can be refunded, to its original payer. Legacy inventory remains usable but has no invented refundable history. Snapshot fields `refundable`, `refundAmounts`, `evidenceDocuments`, `projectWork` and `outcomes` are additive protocol-v1 fields. Internal `lots`, seat tokens and duplicate history are omitted. `ping.item` optionally references already-discovered evidence. Stable rule codes include `PENDING_APPROVAL`, `DISTANCE`, `INSUFFICIENT_FUNDS`, `INVENTORY_FULL` and `NOT_REFUNDABLE`. Existing command shapes and full-state fallback remain available.
+
+Repeat garden commissions change the service-part prices and evidence; the browser uses the shared authored catalog. Existing Unity source/binaries have not been validated against replay-price presentation; Unity remains experimental. Exporting a base catalog alone is not a claim of replay UI support.

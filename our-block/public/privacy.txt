@@ -1,0 +1,11 @@
+OUR BLOCK — private playtest information (October 21, 2026)
+
+Choose a nickname; no real name or birthday is needed. The game saves your town, fictional balances, inventory, actions and project progress on its server. The browser stores a private seat recovery secret for this session; “Remember my seat” keeps it on this device until you choose “Forget this device.” Forgetting a device does not delete the server's saved town.
+
+Invitation links contain the town code, not your seat recovery secret. Anyone with a town link may join an available seat; share links only with people you intend to invite. Never send a recovery secret in a message or screenshot.
+
+No advertising, free-text chat, real purchases, live AI calls or third-party analytics are part of the game. Frame checks are optional and stay in your browser. Fonts use your device's system fonts. Hosting, database and repository providers have their own operational data practices.
+
+This is a playtest, not a certified educational or child-directed production service. Guardian permission is needed where appropriate for organized tests. Contact the person who invited you for support or a saved-town removal request; the operator must verify control privately before removing shared progress. Do not send passwords, banking information or recovery tokens. A public support channel and final retention/consent review are not yet established.
+
+Progress is retained during the playtest; the game does not silently delete towns to free storage. Private release backups contain saved progress and recovery secrets. Manual backup tooling supports seven daily and three release copies; unattended off-device backups are not configured. Removing a town from a live database does not instantly remove retained private backup copies. Establish the final retention/deletion process before broader release.

@@ -11,7 +11,13 @@ import {
 } from "../shared/content.ts";
 import "./style.css";
 import { gardenSteps, projectSteps, type Guidance } from "./guidance.ts";
-import { ReviewSheet, WorldBoundary, WorldLoading } from "./Overlays.tsx";
+import {
+  ActionFeedback,
+  InvitationPanel,
+  ReviewSheet,
+  WorldBoundary,
+  WorldLoading,
+} from "./Overlays.tsx";
 import DeviceCheck from "./DeviceCheck.tsx";
 import { commandId } from "./ids.ts";
 import { TownConnection } from "./connection.ts";
@@ -40,7 +46,6 @@ function App() {
     [review, setReview] = useState<any>(null),
     [inFlight, setInFlight] = useState<string | null>(null),
     [inviteOpen, setInviteOpen] = useState(false),
-    [inviteStatus, setInviteStatus] = useState(""),
     [selected, setSelected] = useState("garden"),
     [tab, setTab] = useState("Explore"),
     [map, setMap] = useState(false),
@@ -58,6 +63,8 @@ function App() {
     previousPending = useRef<any[]>([]);
   useEffect(() => {
     panel.current?.scrollTo({ top: 0, behavior: "instant" });
+    if (tab === "Decisions")
+      panel.current?.querySelector<HTMLElement>("#decision-inbox")?.focus();
   }, [selected, tab, section]);
   current.current = state;
   function connect(recover?: any) {
@@ -136,11 +143,13 @@ function App() {
           setConnecting(false);
         }
         if (m.type === "result") {
-          if (m.id === pendingCommand.current) {
+          const economic = m.id === pendingCommand.current;
+          if (economic) {
             pendingCommand.current = null;
             setInFlight(null);
           }
-          setNotice(m.message === "Done." ? "Action complete." : m.message);
+          if (m.message !== "Done." || economic)
+            setNotice(m.message === "Done." ? "Action complete." : m.message);
           if (audio.current) {
             const o = audio.current.createOscillator(),
               g = audio.current.createGain();
@@ -366,73 +375,11 @@ function App() {
         </button>
       </header>
       {inviteOpen && (
-        <section
-          id="town-invitation"
-          className="invitation"
-          aria-label="Invite friends"
-        >
-          <h2>Join this town</h2>
-          <p>
-            Open this link on the other device and enter a different nickname.
-            Or open the game and enter town code <strong>{state.code}</strong>.
-          </p>
-          <label>
-            Invitation link
-            <input
-              aria-label="Invitation link"
-              readOnly
-              value={invitation}
-              onFocus={(e) => e.currentTarget.select()}
-            />
-          </label>
-          <div className="invitation-actions">
-            <button
-              onClick={async () => {
-                try {
-                  if (!navigator.clipboard?.writeText)
-                    throw Error("Clipboard unavailable");
-                  await navigator.clipboard.writeText(invitation);
-                  setInviteStatus(
-                    "Invitation link copied. Paste it on the other device.",
-                  );
-                } catch {
-                  setInviteStatus(
-                    "Copy is unavailable in this browser. Press and hold the link above to copy it, or enter the town code on the other device.",
-                  );
-                }
-              }}
-            >
-              Copy link
-            </button>
-            {typeof navigator.share === "function" && (
-              <button
-                onClick={async () => {
-                  try {
-                    await navigator.share({
-                      title: "Join my OUR BLOCK town",
-                      url: invitation,
-                    });
-                    setInviteStatus(
-                      "Share sheet closed. Your friend can join using the link or town code.",
-                    );
-                  } catch (error) {
-                    setInviteStatus(
-                      error instanceof Error && error.name === "AbortError"
-                        ? "Sharing canceled. You can still copy the link or use the town code."
-                        : "Sharing is unavailable. Copy the link or use the town code instead.",
-                    );
-                  }
-                }}
-              >
-                Share link
-              </button>
-            )}
-            <button onClick={() => setInviteOpen(false)}>
-              Close invitation
-            </button>
-          </div>
-          <p role="status">{inviteStatus}</p>
-        </section>
+        <InvitationPanel
+          invitation={invitation}
+          code={state.code}
+          close={() => setInviteOpen(false)}
+        />
       )}
       {review && (
         <ReviewSheet
@@ -754,19 +701,21 @@ function App() {
                 </button>
               </article>
             )}
-          {Object.keys(state.contributions || {}).length > 0 && (
-            <article>
-              <h3>Our contributions</h3>
-              {Object.entries(state.contributions).map(([id, text]) => (
-                <p key={id}>
-                  <strong>
-                    {state.players.find((p: any) => p.id === id)?.name}:
-                  </strong>{" "}
-                  {String(text)}
-                </p>
-              ))}
-            </article>
-          )}
+          {section !== "Shop" &&
+            tab !== "Decisions" &&
+            Object.keys(state.contributions || {}).length > 0 && (
+              <article>
+                <h3>Our contributions</h3>
+                {Object.entries(state.contributions).map(([id, text]) => (
+                  <p key={id}>
+                    <strong>
+                      {state.players.find((p: any) => p.id === id)?.name}:
+                    </strong>{" "}
+                    {String(text)}
+                  </p>
+                ))}
+              </article>
+            )}
           {connectionStatus && (
             <div className="notice" role="status">
               {connectionStatus}
@@ -805,26 +754,15 @@ function App() {
             </p>
           </div>
           {error && (
-            <div role="alert" className="error">
-              {error}
-              {errorCode === "CONNECTION" && (
-                <button
-                  onClick={() =>
-                    connect(
-                      JSON.parse(sessionStorage.getItem(storageKey) || "{}"),
-                    )
-                  }
-                >
-                  Reconnect
-                </button>
-              )}
-              {errorCode === "PENDING_APPROVAL" && (
-                <button onClick={() => setTab("Decisions")}>
-                  View request
-                </button>
-              )}
-              <button onClick={() => setError("")}>Dismiss error</button>
-            </div>
+            <ActionFeedback
+              code={errorCode}
+              message={error}
+              reconnect={() =>
+                connect(JSON.parse(sessionStorage.getItem(storageKey) || "{}"))
+              }
+              viewRequest={() => setTab("Decisions")}
+              dismiss={() => setError("")}
+            />
           )}
           {notice && (
             <div role="status" className="notice">
@@ -1005,8 +943,8 @@ function App() {
                           >
                             {o.id === "delivery-fee"
                               ? "Dispute payment"
-                              : "Return unused"}{" "}
-                            · {o.price}
+                              : "Return unused to original payer"}{" "}
+                            · {state.refundAmounts?.[o.id] ?? o.price}
                           </button>
                         )}
                       </article>
@@ -1369,7 +1307,8 @@ function App() {
       </main>
       <footer className="foot">
         <span>Built together. Learned by doing.</span>
-        <a href="/credits.txt">Credits</a>
+        <a href="/credits.txt">Credits</a>{" "}
+        <a href="/privacy.txt">Playtest privacy & support</a>
         <span>
           {state.players.filter((p: any) => p.online).length === 1
             ? "EMBER · solo helper available at Home"

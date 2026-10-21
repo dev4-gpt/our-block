@@ -592,7 +592,11 @@ export function apply(
         toStore ? "storage" : p.id,
       );
       add(to, c.item, c.qty!);
-      need(count(p.bag) <= limit(t), "Backpack capacity exceeded.");
+      need(
+        count(p.bag) <= limit(t),
+        "Backpack capacity exceeded.",
+        "INVENTORY_FULL",
+      );
       need(
         count(t.storage) <=
           30 +
@@ -600,6 +604,7 @@ export function apply(
             (t.upgrades.includes("stock") ? 20 : 0) +
             (t.upgrades.includes("shelves") ? 10 : 0),
         "Shared storage is full.",
+        "INVENTORY_FULL",
       );
     } else if (c.type === "give") {
       const other = t.players.find((x) => x.id === c.player);
@@ -616,7 +621,11 @@ export function apply(
       consumeAt(t, p.id, { [c.item]: c.qty! }, other.id);
       add(other.bag, c.item, c.qty!);
       work(t, p, "Shared repair or project supplies");
-      need(count(other.bag) <= limit(t), "Their backpack is full.");
+      need(
+        count(other.bag) <= limit(t),
+        "Their backpack is full.",
+        "INVENTORY_FULL",
+      );
     } else if (c.type === "deposit") {
       near(p, "home");
       need(
@@ -783,6 +792,7 @@ export function apply(
       need(
         count(t.storage) < 30 + (t.upgrades.includes("storage") ? 30 : 0),
         "Storage is full.",
+        "INVENTORY_FULL",
       );
       consumeAt(t, p.id, { [c.item]: 1 }, "storage");
       add(t.storage, c.item, 1);
@@ -845,6 +855,13 @@ export function snapshot(t: Town, id: string) {
     evidenceDocuments: Object.fromEntries(
       t.evidence.map((e) => [e, evidenceText(t, e)]),
     ),
+    refundAmounts: Object.fromEntries(
+      townOffers(t).map((o) => [
+        o.id,
+        refundPlan(t, id, o.id, o.qty)?.reduce((n, row) => n + row.amount, 0) ||
+          0,
+      ]),
+    ),
     refundable: Object.fromEntries(
       townOffers(t).map((o) => [
         o.id,
@@ -878,10 +895,11 @@ export function restore(raw: any): Town {
           typeof l.id === "string" &&
           typeof l.offer === "string" &&
           typeof l.item === "string" &&
-          typeof l.payer === "string" &&
+          (l.payer === "shared" || t.players.some((p) => p.id === l.payer)) &&
+          offers.some((o) => o.id === l.offer && o.item === l.item) &&
           Number.isSafeInteger(l.qty) &&
           l.qty > 0 &&
-          Number.isFinite(l.unitPaid) &&
+          Number.isSafeInteger(l.unitPaid) &&
           l.unitPaid > 0 &&
           (l.location === "storage" ||
             t.players.some((p) => p.id === l.location)),

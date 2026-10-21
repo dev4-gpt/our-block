@@ -88,61 +88,78 @@ test("all six districts have two functional upgrades", () => {
   for (const d of districts)
     assert.equal(upgrades.filter((u) => u.district === d.id).length, 2);
 });
-for (const alternative of [false, true])
-  test(`all three projects have a full legal solution, approach ${alternative ? 2 : 1}`, () => {
-    const s = setup();
-    s.at("garden");
-    s.act("accept", { target: "garden" });
-    s.act("activity", { target: "inspect" });
-    s.at("workshop");
-    s.act("activity", { target: "diagnose" });
-    s.at("market");
-    s.act("activity", { target: "compare" });
-    s.act("buy", { target: alternative ? "hose" : "connector" });
-    s.at("garden");
-    s.act("fit", { item: alternative ? "hose" : "connector" });
-    s.act("test");
-    s.act("complete", { target: "garden" });
-    assert.equal(s.t.contracts.garden.status, "complete");
-    s.at("market");
-    s.act("accept", { target: "market" });
-    s.act("buy", { target: "seed" });
-    s.act("buy", { target: "pack" });
-    s.at("home");
-    s.act("activity", { target: "plan" });
-    s.at("garden");
-    s.act("activity", { target: "water" });
-    tick(s.t, 30);
-    s.act("activity", { target: "harvest" });
-    s.at("depot");
-    if (alternative) s.act("buy", { target: "reused" });
-    s.act("activity", { target: "route" });
-    s.act("activity", { target: "pack" });
-    s.at("market");
-    s.act("complete", { target: "market" });
-    s.at("hall");
-    s.act("accept", { target: "evening" });
-    s.act("activity", { target: "terms" });
-    if (alternative) s.act("upgrade", { target: "event" });
-    else s.act("buy", { target: "lamp" });
-    if (alternative) s.act("upgrade", { target: "kitchen" });
-    s.at("workshop");
-    s.act("buy", { target: "filter" });
-    s.act("activity", { target: "repair" });
-    s.at("garden");
-    s.act("upgrade", { target: "irrigation" });
-    s.act("activity", { target: "water" });
-    tick(s.t, 30);
-    s.act("activity", { target: "harvest" });
-    s.at("depot");
-    s.act("activity", { target: "trace" });
-    if (!alternative) s.act("activity", { target: "pack" });
-    s.at("hall");
-    if (alternative) s.act("activity", { target: "cater" });
-    s.act("complete", { target: "evening" });
-    assert(Object.values(s.t.contracts).every((x) => x.status === "complete"));
-    assert(s.t.funds > 0);
-  });
+for (const replay of [false, true])
+  for (const alternative of [false, true])
+    test(`all three projects have a full legal solution, approach ${alternative ? 2 : 1}, replay ${replay}`, () => {
+      const s = setup();
+      if (replay)
+        for (const id of ["garden", "market", "evening"])
+          s.t.contracts[id] = { due: 3, status: "complete", variant: 0 };
+      s.at("garden");
+      s.act("accept", { target: "garden" });
+      s.act("activity", { target: "inspect" });
+      s.at("workshop");
+      s.act("activity", { target: "diagnose" });
+      s.at("market");
+      s.act("activity", { target: "compare" });
+      s.act("buy", { target: alternative ? "hose" : "connector" });
+      if (replay) {
+        s.at("workshop");
+        s.act("buy", { target: "filter" });
+      }
+      s.at("garden");
+      s.act("fit", { item: alternative ? "hose" : "connector" });
+      s.act("test");
+      s.act("complete", { target: "garden" });
+      assert.equal(s.t.contracts.garden.status, "complete");
+      s.at("market");
+      s.act("accept", { target: "market" });
+      s.act("buy", { target: "seed" });
+      s.act("buy", { target: "pack" });
+      s.at("home");
+      s.act("activity", { target: "plan" });
+      s.at("garden");
+      if (replay) s.act("upgrade", { target: "irrigation" });
+      for (let i = 0; i < (replay ? 2 : 1); i++) {
+        s.act("activity", { target: "water" });
+        tick(s.t, 30);
+        s.act("activity", { target: "harvest" });
+      }
+      s.at("depot");
+      if (alternative) s.act("buy", { target: "reused" });
+      s.act("activity", { target: "route" });
+      for (let i = 0; i < (replay ? 2 : 1); i++)
+        s.act("activity", { target: "pack" });
+      s.at("market");
+      s.act("complete", { target: "market" });
+      s.at("hall");
+      s.act("accept", { target: "evening" });
+      s.act("activity", { target: "terms" });
+      if (alternative) s.act("upgrade", { target: "event" });
+      else s.act("buy", { target: "lamp" });
+      if (alternative) s.act("upgrade", { target: "kitchen" });
+      s.at("workshop");
+      for (let i = 0; i < (replay ? 2 : 1); i++) {
+        s.act("buy", { target: "filter" });
+        s.act("activity", { target: "repair" });
+      }
+      s.at("garden");
+      if (!s.t.upgrades.includes("irrigation"))
+        s.act("upgrade", { target: "irrigation" });
+      s.act("activity", { target: "water" });
+      tick(s.t, 30);
+      s.act("activity", { target: "harvest" });
+      s.at("depot");
+      s.act("activity", { target: "trace" });
+      if (!alternative) s.act("activity", { target: "pack" });
+      s.at("hall");
+      if (alternative) s.act("activity", { target: "cater" });
+      s.act("complete", { target: "evening" });
+      assert(
+        Object.values(s.t.contracts).every((x) => x.status === "complete"),
+      );
+      assert(s.t.funds > 0);
+    });
 test("incompatible purchase is recoverable with a full unused return", () => {
   const s = setup();
   s.at("market");
