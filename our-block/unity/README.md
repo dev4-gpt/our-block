@@ -21,7 +21,7 @@ Required acceptance: compile without warnings requiring fixes; create/join/recov
 
 Keep Unity cloud builds disabled until the account dashboard confirms free license eligibility, included builder minutes, exact editor availability, repository access, artifact access and a hard stop before paid overages. If any requirement cannot be confirmed, retain source and ship the browser prototype. Do not substitute a paid VM or trial.
 
-Account verification (October 20, 2026): the signed-in DevOps dashboard reports Free tier, 100 unused Mac minutes, 200 unused Windows minutes, 100 unused Linux minutes, 25 GB storage and 100 GB egress. The OUR BLOCK cloud project exists (78500391-7ea3-4fcf-9e81-1f2b64a89404). The private repository connection requires a read-only deploy key, prepared but awaiting user approval. No build has been triggered. Exact editor availability remains unverified. [Free-plan lock behavior](https://docs.unity.com/en-us/devops/pricing/free-plan) prevents continued service after exceeding allowances without an upgrade.
+Account verification (October 20, 2026): the signed-in DevOps dashboard reports Free tier, 100 unused Mac minutes, 200 unused Windows minutes, 100 unused Linux minutes, 25 GB storage and 100 GB egress. The OUR BLOCK cloud project exists (78500391-7ea3-4fcf-9e81-1f2b64a89404). The user installed an Ed25519 read-only deploy key and Unity confirmed repository access. Target `our-block-mac-arm-manual` uses the exact pinned editor (confirmed available), Sequoia, Apple-Silicon editor and Mac Standard free-eligible compute. Build #1 has been manually queued; compilation remains unverified. Automatic builds/schedules are off. Free-plan concurrency is fixed at two; submit only one build at a time. [Free-plan lock behavior](https://docs.unity.com/en-us/devops/pricing/free-plan) prevents continued service after exceeding allowances without an upgrade.
 
 Prepared manual configuration (not yet enabled):
 - Repository project subdirectory: `our-block/unity`.
@@ -30,7 +30,7 @@ Prepared manual configuration (not yet enabled):
 - Pre-export static method: `BlockBuild.PreExport` (prepares generated scene and URP; does not recursively call BuildPipeline).
 - Environment: `OUR_BLOCK_SERVER_URL=wss://our-block-1ooe.onrender.com/ws`. This is a public endpoint, not a database credential.
 - Target one: macOS, Apple Silicon. Target two: Windows x86-64 after Mac success and quota review.
-- Automatic builds: off. Concurrency: one. Retain/download artifacts and logs after successful manual builds.
+- Automatic builds: off. Only one submitted build at a time (the Free plan fixes its account concurrency limit at two). Retain/download artifacts and logs after successful manual builds.
 
 The hook writes a public ServerConfig resource; the desktop client reads it at startup. Shared content is exported and committed in advance. Compilation and package resolution happen before the pre-export hook; fix failures from the build log before spending minutes on another build. The included shell hook enables the Input System before compilation.
 

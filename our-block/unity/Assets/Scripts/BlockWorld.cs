@@ -42,7 +42,7 @@ public sealed class BlockWorld : MonoBehaviour
     void Box(Vector3 position,Vector3 scale,string color)
     {
         var obj=GameObject.CreatePrimitive(PrimitiveType.Cube);obj.transform.position=position;obj.transform.localScale=scale;
-        if(!materials.TryGetValue(color,out var material)){material=new Material(Shader.Find("Universal Render Pipeline/Lit"));ColorUtility.TryParseHtmlString(color,out var c);material.color=c;materials[color]=material;}obj.GetComponent<Renderer>().sharedMaterial=material;
+        if(!materials.TryGetValue(color,out var material)){var template=Resources.Load<Material>("BlockMaterial");material=template!=null?new Material(template):new Material(Shader.Find("Universal Render Pipeline/Lit"));ColorUtility.TryParseHtmlString(color,out var c);material.color=c;materials[color]=material;}obj.GetComponent<Renderer>().sharedMaterial=material;
     }
     void Update()
     {
