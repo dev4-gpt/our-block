@@ -80,7 +80,7 @@ node --import tsx scripts/cloud-smoke.ts https://our-block-1ooe.onrender.com --r
 
 Private recovery data is saved mode 0600 under ignored root backups/. Do not publish it.
 
-Unity: the user's welcome PDF confirms Student plan access and a free Synty bundle offer, but does not establish cloud-build minutes, supported builders or a hard spending stop. Unity's browser session still requires sign-in. No Unity builds or paid services are enabled. The private PDF and its coupon are excluded from GitHub.
+Unity account verified October 20, 2026: DevOps Free tier; usage 0/100 Mac minutes, 0/200 Windows minutes, 0/100 Linux minutes, 0/25 GB storage, and 0/100 GB egress. Unity's official free-plan documentation states that excess usage locks access rather than upgrading automatically. Created OUR BLOCK project 78500391-7ea3-4fcf-9e81-1f2b64a89404 with child audience selected for the intended ages 9–15. Repository connection is awaiting explicit approval for a read-only GitHub deploy key limited to dev4-gpt/our-block. No builds or paid upgrades are enabled. Editor availability and actual compilation remain unverified. The private Student-plan PDF and its coupon remain excluded from GitHub.
 
 Postgres records carry an internal storage_version separate from the public protocol revision. Version-checked writes reject stale overlapping servers instead of overwriting newer saves. This guards accidental deploy overlap; it does not implement multi-replica simulation.
 

@@ -21,12 +21,14 @@ Required acceptance: compile without warnings requiring fixes; create/join/recov
 
 Keep Unity cloud builds disabled until the account dashboard confirms free license eligibility, included builder minutes, exact editor availability, repository access, artifact access and a hard stop before paid overages. If any requirement cannot be confirmed, retain source and ship the browser prototype. Do not substitute a paid VM or trial.
 
+Account verification (October 20, 2026): the signed-in DevOps dashboard reports Free tier, 100 unused Mac minutes, 200 unused Windows minutes, 100 unused Linux minutes, 25 GB storage and 100 GB egress. The OUR BLOCK cloud project exists (78500391-7ea3-4fcf-9e81-1f2b64a89404). The private repository connection requires a read-only deploy key, prepared but awaiting user approval. No build has been triggered. Exact editor availability remains unverified. [Free-plan lock behavior](https://docs.unity.com/en-us/devops/pricing/free-plan) prevents continued service after exceeding allowances without an upgrade.
+
 Prepared manual configuration (not yet enabled):
 - Repository project subdirectory: `our-block/unity`.
 - Editor: `6000.3.25f1`; if unavailable, do not silently select another version.
 - Pre-build shell script: `our-block/scripts/unity-prebuild.sh` (repository-root path).
 - Pre-export static method: `BlockBuild.PreExport` (prepares generated scene and URP; does not recursively call BuildPipeline).
-- Environment: `OUR_BLOCK_SERVER_URL=wss://YOUR-RENDER-HOST/ws`. This is a public endpoint, not a database credential.
+- Environment: `OUR_BLOCK_SERVER_URL=wss://our-block-1ooe.onrender.com/ws`. This is a public endpoint, not a database credential.
 - Target one: macOS, Apple Silicon. Target two: Windows x86-64 after Mac success and quota review.
 - Automatic builds: off. Concurrency: one. Retain/download artifacts and logs after successful manual builds.
 
