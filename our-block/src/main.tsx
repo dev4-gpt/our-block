@@ -212,6 +212,17 @@ function App() {
   const offers = townOffers(state);
   const me = state?.players.find((p: any) => p.id === state.you);
   useEffect(() => {
+    const resume = () => {
+      if (!document.hidden) transport.current?.resume();
+    };
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("online", resume);
+    return () => {
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("online", resume);
+    };
+  }, []);
+  useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
         /INPUT|SELECT|TEXTAREA|BUTTON/.test((e.target as HTMLElement).tagName)

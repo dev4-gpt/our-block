@@ -37,6 +37,7 @@ export class TownConnection {
   private ready = false;
   private stopped = true;
   private pending = new Set<string>();
+  private movementTimer: any;
   constructor(private options: Options) {}
   private schedule(fn: () => void, ms: number) {
     return (this.options.schedule || setTimeout)(fn, ms);
@@ -62,6 +63,7 @@ export class TownConnection {
     this.cancel(this.timer);
     this.cancel(this.deadline);
     this.cancel(this.budgetTimer);
+    this.cancel(this.movementTimer);
     this.retryStarted = undefined;
     if (this.ws) {
       this.ws.onclose = null;
@@ -74,11 +76,35 @@ export class TownConnection {
     if (!["move", "ping", "ack"].includes(command.type))
       this.pending.add(command.id);
     this.ws.send(JSON.stringify(command));
+    if (command.type === "move") this.watchMovement(this.ws);
     return true;
+  }
+  /** Only expect updates during movement; idle towns generate no watchdog traffic. */
+  private watchMovement(ws: SocketLike) {
+    this.cancel(this.movementTimer);
+    this.movementTimer = this.schedule(() => {
+      if (this.stopped || this.ws !== ws) return;
+      this.ready = false;
+      // Detach the old socket: late frames must not overwrite the recovered view.
+      ws.onclose = null;
+      ws.onmessage = null;
+      ws.close();
+      this.retry(this.generation);
+    }, 5000);
+  }
+  resume() {
+    if (this.stopped || !this.ready || !this.ws) return;
+    const ws = this.ws;
+    this.ready = false;
+    ws.onclose = null;
+    ws.onmessage = null;
+    ws.close();
+    this.retry(this.generation);
   }
   private retry(generation: number) {
     if (this.stopped || generation !== this.generation) return;
     this.ready = false;
+    this.cancel(this.movementTimer);
     if (this.pending.size) {
       this.pending.clear();
       this.options.uncertain();
@@ -145,7 +171,7 @@ export class TownConnection {
       ws.send(JSON.stringify({ type: "join", ...this.request }));
     };
     ws.onmessage = (e) => {
-      if (this.stopped || generation !== this.generation) return;
+      if (this.stopped || generation !== this.generation || this.ws !== ws) return;
       let m: any;
       try {
         m = JSON.parse(e.data);
@@ -158,6 +184,9 @@ export class TownConnection {
         this.attempts = 0;
       }
       if (m.type === "state" && joined) {
+        this.cancel(this.movementTimer);
+        if (m.state?.players?.some((p: any) => p.online && p.target))
+          this.watchMovement(ws);
         this.cancel(this.budgetTimer);
         this.retryStarted = undefined;
         this.cancel(this.deadline);
@@ -178,6 +207,7 @@ export class TownConnection {
     };
     ws.onerror = () => {}; // close owns retries; never submit a second copy of an action.
     ws.onclose = (e) => {
+      this.cancel(this.movementTimer);
       this.cancel(this.deadline);
       if (this.stopped || generation !== this.generation) return;
       this.ready = false;

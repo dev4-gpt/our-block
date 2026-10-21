@@ -58,6 +58,47 @@ function setup() {
   };
 }
 const turn = () => new Promise((r) => setImmediate(r));
+test("stalled moving snapshots recover the seat without replaying purchases", async () => {
+  const s = setup();
+  s.client.start({ code: "ABC", token: "seat" });
+  await turn();
+  const ws = s.sockets[0];
+  ws.onopen({});
+  ws.receive({ type: "joined", code: "ABC", token: "seat" });
+  ws.receive({ type: "state", state: { players: [{ online: true, target: { x: 4, z: 2 } }] } });
+  s.client.send({ id: "purchase", type: "buy" });
+  const lateFrame = ws.onmessage;
+  s.jobs.find((j) => j.ms === 5000)!.fn();
+  assert.equal(ws.readyState, 3);
+  assert.equal(s.uncertain, 1);
+  assert(!s.client.send({ id: "late", type: "move" }));
+  s.jobs.find((j) => j.ms === 1000)!.fn();
+  await turn();
+  const recovered = s.sockets[1];
+  recovered.onopen({});
+  assert.deepEqual(recovered.sent, [{ type: "join", code: "ABC", token: "seat" }]);
+  lateFrame({ data: JSON.stringify({ type: "state", state: {} }) });
+  assert(!s.client.send({ id: "still-not-joined", type: "move" }));
+  s.client.stop();
+});
+test("idle snapshots cancel movement timeout and resume reconnects without keepalive traffic", async () => {
+  const s = setup();
+  s.client.start({ code: "ABC", token: "seat" });
+  await turn();
+  const ws = s.sockets[0];
+  ws.onopen({});
+  ws.receive({ type: "joined", code: "ABC", token: "seat" });
+  ws.receive({ type: "state", state: {} });
+  s.client.send({ id: "walk", type: "move", x: 3, z: 4 });
+  assert(s.jobs.some((j) => j.ms === 5000));
+  ws.receive({ type: "state", state: { players: [{ online: true }] } });
+  assert(!s.jobs.some((j) => j.ms === 5000));
+  assert.equal(ws.sent.length, 2);
+  s.client.resume();
+  assert.equal(ws.readyState, 3);
+  s.client.stop();
+  assert.equal(s.jobs.length, 0);
+});
 test("recover reconnects with token and never retransmits uncertain purchase", async () => {
   const s = setup();
   s.client.start({ code: "ABC", token: "seat" });
