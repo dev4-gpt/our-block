@@ -6,7 +6,7 @@ services:
     plan: free
     numInstances: 1
     healthCheckPath: /health
-    autoDeployTrigger: off
+    autoDeployTrigger: "off"
     envVars:
       - key: DATABASE_URL
         sync: false

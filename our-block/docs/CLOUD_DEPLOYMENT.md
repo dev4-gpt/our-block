@@ -58,6 +58,8 @@ Check Render instance hours/build bandwidth and Neon storage/compute dashboards 
 
 ## Current external gates
 
-Render, Neon and Unity showed login screens at inspection. GitHub CLI authentication is available. No Render service, Neon project or Unity build was provisioned during local preparation. Public URL, cloud redeploy survival and external-network gameplay remain unverified until accounts are connected.
+Render, Neon and Unity showed login screens at inspection. The private source repository is https://github.com/dev4-gpt/our-block (default branch codex/cloud-hosting). No Render service, Neon project or Unity build was provisioned during local preparation. Public URL, cloud redeploy survival and external-network gameplay remain unverified until accounts are connected.
 
 Postgres records carry an internal storage_version separate from the public protocol revision. Version-checked writes reject stale overlapping servers instead of overwriting newer saves. This guards accidental deploy overlap; it does not implement multi-replica simulation.
+
+Local verification: 33 tests passed with real Postgres, including four WebSocket clients and process restart. SQLite-specific checks also passed. Browser refresh and automatic seat recovery after a controlled restart were observed. These are local checks, not evidence of a Render/Neon deployment.
