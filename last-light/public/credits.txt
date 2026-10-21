@@ -1,0 +1,35 @@
+LAST LIGHT — Third-party credits
+
+Autopolis — https://github.com/sleuthy-sloth/autopolis
+Adaptations: deterministic A* routing approach, Mulberry32 seeded layout RNG,
+and buildShadedBoxGeometry face shading used in the original rescue renderer.
+The room protocol, role projections, rescue rules, UI, bots and persistence are original.
+
+MIT License
+
+Copyright (c) 2026 Steven Koehl
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Design references (no source copied):
+- dev4-gpt/DispatchIQ — deterministic validation of proposed operations.
+- dev4-gpt/veloce-forge — timed event recording and read-only replay.
+
+Runtime libraries: React and React DOM (MIT), Three.js (MIT), ws (MIT).
+Their notices are included in the installed dependencies.

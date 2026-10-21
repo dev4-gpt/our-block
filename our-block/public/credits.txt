@@ -1,0 +1,6 @@
+OUR BLOCK
+Original game systems, authored scenarios, interface and procedural low-poly artwork.
+Uses React (MIT), Three.js (MIT), Vite (MIT), ws (MIT), TypeScript (Apache-2.0).
+Fonts: DM Sans and Manrope, SIL Open Font License, served by Google Fonts with local sans-serif fallback.
+The neighboring LAST LIGHT project retains its own Autopolis attribution. No WorldClaw assets are included.
+DispatchIQ's deterministic-validation concept and Veloce Forge's event-recording concept informed the design; no code from those projects is included here.

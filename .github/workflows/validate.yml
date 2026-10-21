@@ -1,0 +1,42 @@
+name: Validate OUR BLOCK (manual)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: local-test-only
+          POSTGRES_DB: ourblock
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: our-block
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: our-block/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm run export:unity && git diff --exit-code -- unity/Assets/Resources/Content.json
+      - name: SQLite rules and socket recovery
+        run: NETWORK_TEST=1 npm test
+      - name: Postgres persistence and socket recovery
+        run: NETWORK_TEST=1 npm test
+        env:
+          ALLOW_LOCAL_PG_TEST: '1'
+          TEST_DATABASE_URL: postgresql://postgres:local-test-only@localhost:5432/ourblock
