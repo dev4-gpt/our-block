@@ -1,6 +1,10 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
 :root {
-  font-family: "DM Sans", sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   color: #283c35;
   background: #f3f0e7;
   font-synthesis: none;
@@ -817,5 +821,58 @@ select:focus-visible {
   margin-top: 12px;
 }
 .invitation-actions button {
+  min-height: 44px;
+}
+
+.explore-nav {
+  display: flex;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  background: #f3f0e7;
+  z-index: 2;
+  padding: 10px 0;
+}
+.explore-nav [aria-pressed="true"] {
+  background: #315748;
+  color: white;
+}
+.action-status {
+  padding: 10px;
+  border: 1px solid #a8bca9;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.pending-card {
+  border: 2px solid #315748;
+}
+.review-sheet {
+  max-width: min(520px, calc(100vw - 24px));
+  max-height: 85svh;
+  overflow: auto;
+  border: 1px solid #315748;
+  border-radius: 16px;
+  padding: 24px;
+  background: #f8f7ee;
+  color: #283c35;
+}
+.review-sheet::backdrop {
+  background: rgb(16 37 29 / 55%);
+}
+.review-sheet dd {
+  font-weight: bold;
+  margin: 0 0 12px;
+}
+.review-sheet button {
+  margin: 6px;
+  min-height: 44px;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid #365b96;
+  outline-offset: 3px;
+}
+button {
   min-height: 44px;
 }

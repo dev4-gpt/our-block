@@ -3,14 +3,15 @@ import { createRoot } from "react-dom/client";
 import {
   districts,
   activities,
-  offers,
+  townOffers,
   upgrades,
   projects,
   items,
   pings,
 } from "../shared/content.ts";
 import "./style.css";
-import { gardenSteps, type Guidance } from "./guidance.ts";
+import { gardenSteps, projectSteps, type Guidance } from "./guidance.ts";
+import { ReviewSheet, WorldBoundary, WorldLoading } from "./Overlays.tsx";
 import DeviceCheck from "./DeviceCheck.tsx";
 import { commandId } from "./ids.ts";
 import { TownConnection } from "./connection.ts";
@@ -34,6 +35,10 @@ function App() {
     [remember, setRemember] = useState(!!localStorage.getItem(storageKey)),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
+    [errorCode, setErrorCode] = useState(""),
+    [section, setSection] = useState("Town"),
+    [review, setReview] = useState<any>(null),
+    [inFlight, setInFlight] = useState<string | null>(null),
     [inviteOpen, setInviteOpen] = useState(false),
     [inviteStatus, setInviteStatus] = useState(""),
     [selected, setSelected] = useState("garden"),
@@ -47,7 +52,13 @@ function App() {
   const transport = useRef<TownConnection | null>(null),
     current = useRef<any>(null),
     audio = useRef<AudioContext | null>(null),
-    lastKeyboardMove = useRef(0);
+    lastKeyboardMove = useRef(0),
+    pendingCommand = useRef<string | null>(null),
+    panel = useRef<HTMLElement>(null),
+    previousPending = useRef<any[]>([]);
+  useEffect(() => {
+    panel.current?.scrollTo({ top: 0, behavior: "instant" });
+  }, [selected, tab, section]);
   current.current = state;
   function connect(recover?: any) {
     transport.current?.stop();
@@ -68,10 +79,13 @@ function App() {
         setConnecting(!ready && !!text);
         setConnectionStatus(text);
       },
-      uncertain: () =>
+      uncertain: () => {
+        pendingCommand.current = null;
+        setInFlight(null);
         setNotice(
           "Connection interrupted before an action was confirmed. Review your balance, backpack and ledger before deciding whether to try again.",
-        ),
+        );
+      },
       message: (m) => {
         if (m.type === "joined") {
           sessionStorage.setItem(
@@ -92,6 +106,16 @@ function App() {
         }
         if (m.type === "state") {
           setState(m.state);
+          const resolved = previousPending.current.find(
+            (q) => !m.state.pending.some((n: any) => n.id === q.id),
+          );
+          if (resolved) {
+            const d = m.state.decisions?.find((d: any) => d.id === resolved.id);
+            setNotice(
+              d?.text || "Request resolved. Review the latest balance.",
+            );
+          }
+          previousPending.current = m.state.pending;
           const decision = m.state.decisions
             ?.filter((d: any) => d.by === m.state.you)
             .at(-1);
@@ -104,10 +128,19 @@ function App() {
         }
         if (m.type === "error") {
           setError(m.message);
+          setErrorCode(m.code || "RULE");
+          if (!m.id || m.id === pendingCommand.current) {
+            pendingCommand.current = null;
+            setInFlight(null);
+          }
           setConnecting(false);
         }
         if (m.type === "result") {
-          if (m.message !== "Done.") setNotice(m.message);
+          if (m.id === pendingCommand.current) {
+            pendingCommand.current = null;
+            setInFlight(null);
+          }
+          setNotice(m.message === "Done." ? "Action complete." : m.message);
           if (audio.current) {
             const o = audio.current.createOscillator(),
               g = audio.current.createGain();
@@ -143,21 +176,31 @@ function App() {
     return () => transport.current?.stop();
   }, []);
   function send(type: string, extra: any = {}) {
+    const economic = !["move", "ping", "ack"].includes(type);
+    if (economic && pendingCommand.current) return;
+    const id = commandId();
     if (
       !current.current ||
       !transport.current?.send({
         v: 1,
         type,
-        id: commandId(),
+        id,
         revision: current.current.revision,
         ...extra,
       })
     ) {
+      setErrorCode("CONNECTION");
       setError("Reconnect and wait for the latest town view before acting.");
       return;
     }
+    if (economic) {
+      pendingCommand.current = id;
+      setInFlight(id);
+    }
     setError("");
+    setNotice(economic ? "Sending action…" : "");
   }
+  const offers = townOffers(state);
   const me = state?.players.find((p: any) => p.id === state.you);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -279,8 +322,20 @@ function App() {
     );
   const go = (id: string) => {
     setSelected(id);
+    setTab("Explore");
     const d = districts.find((x) => x.id === id)!;
     send("move", { x: d.x, z: d.z + 3 });
+  };
+  const ownRequest = state.pending.find((q: any) => q.by === me.id);
+  const reviewPurchase = (o: any, kind: string) => {
+    if (account === "shared" && ownRequest) {
+      setTab("Decisions");
+      setNotice(
+        "Resolve your pending request before requesting another shared purchase.",
+      );
+      return;
+    }
+    setReview({ ...o, kind });
   };
   const invitation = `${location.origin}${location.pathname}?town=${state.code}`;
   return (
@@ -299,6 +354,9 @@ function App() {
           <small>COOPERATIVE FUNDS</small>
           <b>◈ {state.funds}</b>
         </div>
+        <button onClick={() => setTab("Decisions")}>
+          Decisions ({state.pending.length})
+        </button>
         <button
           aria-expanded={inviteOpen}
           aria-controls="town-invitation"
@@ -375,6 +433,24 @@ function App() {
           </div>
           <p role="status">{inviteStatus}</p>
         </section>
+      )}
+      {review && (
+        <ReviewSheet
+          review={review}
+          funds={account === "personal" ? me.money : state.funds}
+          personal={account === "personal"}
+          needsApproval={
+            account === "shared" &&
+            state.players.some((p: any) => p.online && p.id !== me.id)
+          }
+          busy={!!inFlight}
+          close={() => setReview(null)}
+          confirm={() => {
+            send(review.kind, { target: review.id, account });
+            setReview(null);
+            setTab("Decisions");
+          }}
+        />
       )}
       <nav className="topnav">
         <label className="guidance-select">
@@ -459,20 +535,26 @@ function App() {
               ))}
             </div>
           ) : (
-            <Suspense
-              fallback={
-                <div className="loading">Planting the neighborhood…</div>
-              }
+            <WorldBoundary
+              fallback={<p>Open the accessible map to continue.</p>}
+              onFail={() => setMap(true)}
             >
-              <World
-                state={state}
-                follow={follow}
-                selected={selected}
-                onSelect={setSelected}
-                onMove={(x, z) => send("move", { x, z })}
-                onFail={() => setMap(true)}
-              />
-            </Suspense>
+              <Suspense
+                fallback={<WorldLoading fallback={() => setMap(true)} />}
+              >
+                <World
+                  state={state}
+                  follow={follow}
+                  selected={selected}
+                  onSelect={(id) => {
+                    setSelected(id);
+                    setSection("Town");
+                  }}
+                  onMove={(x, z) => send("move", { x, z })}
+                  onFail={() => setMap(true)}
+                />
+              </Suspense>
+            </WorldBoundary>
           )}
           <div className="scene-bottom">
             <span>
@@ -507,7 +589,82 @@ function App() {
             ))}
           </div>
         </section>
-        <aside>
+        <aside ref={panel}>
+          <div className="action-status" role="status">
+            {inFlight
+              ? "Sending action…"
+              : me.target
+                ? `Walking to ${district.name}…`
+                : near
+                  ? `Arrived at ${district.name}`
+                  : `Selected: ${district.name} · walk here to interact`}
+          </div>
+          {tab === "Explore" && (
+            <nav className="explore-nav" aria-label="Explore sections">
+              {["Town", "Activities", "Shop"].map((x) => (
+                <button
+                  key={x}
+                  aria-pressed={section === x}
+                  onClick={() => setSection(x)}
+                >
+                  {x}
+                </button>
+              ))}
+            </nav>
+          )}
+          <div id="decision-inbox" aria-label="Pending decisions">
+            {state.pending.map((q: any) => (
+              <article className="pending-card" key={q.id}>
+                <h3>
+                  {offers.find((o) => o.id === q.target)?.name ||
+                    upgrades.find((u) => u.id === q.target)?.name ||
+                    "Service bill"}{" "}
+                  · {q.cost} credits
+                </h3>
+                <p>
+                  Requested by{" "}
+                  {state.players.find((p: any) => p.id === q.by)?.name}.
+                  Quantity: {offers.find((o) => o.id === q.target)?.qty || 1}.
+                  Shared funds after approval: {state.funds - q.cost}.
+                </p>
+                <p>
+                  {offers.find((o) => o.id === q.target)?.detail ||
+                    upgrades.find((u) => u.id === q.target)?.detail ||
+                    "Pay the outstanding service bill."}
+                </p>
+                <p>
+                  No credits move before approval. Requester can cancel; another
+                  resident can approve or decline.
+                </p>
+                {q.by === me.id ? (
+                  <button
+                    disabled={!!inFlight}
+                    onClick={() => send("cancel", { target: q.id })}
+                  >
+                    Cancel request
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      disabled={!!inFlight}
+                      onClick={() => send("approve", { target: q.id })}
+                    >
+                      Approve shared purchase
+                    </button>
+                    <button
+                      disabled={!!inFlight}
+                      onClick={() => send("decline", { target: q.id })}
+                    >
+                      Decline · no spending
+                    </button>
+                  </>
+                )}
+              </article>
+            ))}
+          </div>
+          {tab === "Decisions" && !state.pending.length && (
+            <p>No pending purchases. Open Explore → Shop to review supplies.</p>
+          )}
           {new URLSearchParams(location.search).get("deviceCheck") === "1" && (
             <DeviceCheck map={map} connected={!connectionStatus} />
           )}
@@ -520,7 +677,8 @@ function App() {
                   : "Storage is approaching its allowance. Your progress remains saved."}
             </div>
           )}
-          {guidance !== "Off" &&
+          {(tab === "Projects" || (tab === "Explore" && section === "Town")) &&
+            guidance !== "Off" &&
             state.contracts.garden?.status !== "complete" && (
               <article className="journey">
                 <span className="eyebrow">FIRST PROJECT · OPEN THE GARDEN</span>
@@ -609,11 +767,6 @@ function App() {
               ))}
             </article>
           )}
-          {state.decisions?.slice(-2).map((d: any) => (
-            <p className="notice" role="status" key={d.id}>
-              {d.text}
-            </p>
-          ))}
           {connectionStatus && (
             <div className="notice" role="status">
               {connectionStatus}
@@ -654,15 +807,23 @@ function App() {
           {error && (
             <div role="alert" className="error">
               {error}
-              <button
-                onClick={() =>
-                  connect(
-                    JSON.parse(sessionStorage.getItem(storageKey) || "{}"),
-                  )
-                }
-              >
-                Reconnect
-              </button>
+              {errorCode === "CONNECTION" && (
+                <button
+                  onClick={() =>
+                    connect(
+                      JSON.parse(sessionStorage.getItem(storageKey) || "{}"),
+                    )
+                  }
+                >
+                  Reconnect
+                </button>
+              )}
+              {errorCode === "PENDING_APPROVAL" && (
+                <button onClick={() => setTab("Decisions")}>
+                  View request
+                </button>
+              )}
+              <button onClick={() => setError("")}>Dismiss error</button>
             </div>
           )}
           {notice && (
@@ -690,54 +851,9 @@ function App() {
               </button>
             </article>
           )}
-          {state.pending.map((q: any) => (
-            <article key={q.id}>
-              <span className="eyebrow">TEAM DECISION</span>
-              <h3>
-                {offers.find((o) => o.id === q.target)?.name ||
-                  upgrades.find((u) => u.id === q.target)?.name ||
-                  "Service bill"}{" "}
-                · {q.cost} credits
-              </h3>
-              <p>
-                Requested by{" "}
-                {state.players.find((p: any) => p.id === q.by)?.name}
-              </p>
-              <p>
-                Quantity: {offers.find((o) => o.id === q.target)?.qty || 1} ·
-                Total: {q.cost} credits · Shared funds after approval:{" "}
-                {state.funds - q.cost}
-              </p>
-              <p>
-                {offers.find((o) => o.id === q.target)?.detail ||
-                  upgrades.find((u) => u.id === q.target)?.detail ||
-                  "Pays the outstanding optional service bill."}
-              </p>
-              <small>
-                No money moves until approval. Purchases are not automatically
-                retried after a connection failure.
-              </small>
-              {q.by !== me.id && (
-                <button onClick={() => send("decline", { target: q.id })}>
-                  Decline · no spending
-                </button>
-              )}
-              {q.by !== me.id && (
-                <button
-                  className="primary"
-                  onClick={() => send("approve", { target: q.id })}
-                >
-                  Approve shared purchase
-                </button>
-              )}
-              {q.by === me.id && (
-                <button onClick={() => send("cancel", { target: q.id })}>
-                  Cancel request
-                </button>
-              )}
-            </article>
-          ))}
-          {selected === "garden" &&
+          {tab === "Explore" &&
+            section !== "Shop" &&
+            selected === "garden" &&
             state.contracts.garden?.status === "active" && (
               <article className="repair">
                 <h3>
@@ -809,92 +925,117 @@ function App() {
                 Try something useful{" "}
                 <span>{near ? "YOU ARE HERE" : "WALK CLOSER TO INTERACT"}</span>
               </div>
-              {activities
-                .filter((a) => a.district === selected)
-                .map((a) => (
-                  <article key={a.id}>
-                    <h3>
-                      {a.name}
-                      {a.evidence && state.evidence.includes(a.evidence) && (
-                        <span className="check"> ✓</span>
-                      )}
-                    </h3>
-                    <p>{a.description}</p>
-                    <button
-                      disabled={!near}
-                      onClick={() => send("activity", { target: a.id })}
-                    >
-                      {a.evidence ? "Inspect & try" : "Do this"} →
-                    </button>
-                  </article>
-                ))}
-              <div className="section-title">Supplies & improvements</div>
-              <label>
-                Pay using
-                <select
-                  value={account}
-                  onChange={(e) => setAccount(e.target.value)}
-                >
-                  <option value="shared">
-                    Cooperative funds · teammate approval
-                  </option>
-                  <option value="personal">
-                    My earnings · {me.money} credits
-                  </option>
-                </select>
-              </label>
-              {offers
-                .filter((o) => o.district === selected)
-                .map((o) => (
-                  <article key={o.id}>
-                    <h3>
-                      {o.name}
-                      <b className="price">◈ {o.price}</b>
-                    </h3>
-                    <p>{o.detail}</p>
-                    <button
-                      disabled={!near}
-                      onClick={() => send("buy", { target: o.id, account })}
-                    >
-                      {o.id === "delivery-fee"
-                        ? "Pay requested fee"
-                        : "Review & buy"}{" "}
-                      · {o.price}
-                    </button>
-                    {me.bag[o.item] >= o.qty && (
+              {section !== "Shop" &&
+                activities
+                  .filter((a) => a.district === selected)
+                  .map((a) => (
+                    <article key={a.id}>
+                      <h3>
+                        {a.name}
+                        {a.evidence && state.evidence.includes(a.evidence) && (
+                          <span className="check"> ✓</span>
+                        )}
+                      </h3>
+                      <p>{a.description}</p>
                       <button
                         disabled={!near}
-                        onClick={() => send("refund", { target: o.id })}
+                        onClick={() => send("activity", { target: a.id })}
                       >
-                        {o.id === "delivery-fee"
-                          ? "Dispute payment"
-                          : "Return unused"}{" "}
-                        · {o.price}
+                        {a.evidence ? "Inspect & try" : "Do this"} →
                       </button>
-                    )}
-                  </article>
-                ))}
-              {upgrades
-                .filter((u) => u.district === selected)
-                .map((u) => (
-                  <article key={u.id}>
-                    <h3>
-                      {u.name}
-                      <b className="price">
-                        {state.upgrades.includes(u.id) ? "✓" : `◈ ${u.cost}`}
-                      </b>
-                    </h3>
-                    <p>{u.detail}</p>
-                    <button
-                      disabled={!near || state.upgrades.includes(u.id)}
-                      onClick={() => send("upgrade", { target: u.id, account })}
-                    >
-                      {state.upgrades.includes(u.id)
-                        ? "Part of your neighborhood"
-                        : "Make this improvement"}
+                    </article>
+                  ))}
+              {section === "Town" && (
+                <button onClick={() => setSection("Shop")}>
+                  Open {district.name} shop
+                </button>
+              )}
+              {section === "Shop" && (
+                <>
+                  <h3>Supplies & improvements</h3>
+                  {!near && (
+                    <button onClick={() => go(selected)}>
+                      Walk here to shop
                     </button>
-                  </article>
-                ))}
+                  )}
+                  {ownRequest && (
+                    <p>
+                      A purchase is waiting.{" "}
+                      <button onClick={() => setTab("Decisions")}>
+                        View request
+                      </button>
+                    </p>
+                  )}
+                  <label>
+                    Pay using
+                    <select
+                      value={account}
+                      onChange={(e) => setAccount(e.target.value)}
+                    >
+                      <option value="shared">
+                        Cooperative funds · teammate approval
+                      </option>
+                      <option value="personal">
+                        My earnings · {me.money} credits
+                      </option>
+                    </select>
+                  </label>
+                  {offers
+                    .filter((o) => o.district === selected)
+                    .map((o) => (
+                      <article key={o.id}>
+                        <h3>
+                          {o.name}
+                          <b className="price">◈ {o.price}</b>
+                        </h3>
+                        <p>{o.detail}</p>
+                        <button
+                          disabled={!near || !!inFlight}
+                          onClick={() => reviewPurchase(o, "buy")}
+                        >
+                          {o.id === "delivery-fee"
+                            ? "Pay requested fee"
+                            : "Review & buy"}{" "}
+                          · {o.price}
+                        </button>
+                        {state.refundable?.[o.id] > 0 && (
+                          <button
+                            disabled={!near}
+                            onClick={() => send("refund", { target: o.id })}
+                          >
+                            {o.id === "delivery-fee"
+                              ? "Dispute payment"
+                              : "Return unused"}{" "}
+                            · {o.price}
+                          </button>
+                        )}
+                      </article>
+                    ))}
+                  {upgrades
+                    .filter((u) => u.district === selected)
+                    .map((u) => (
+                      <article key={u.id}>
+                        <h3>
+                          {u.name}
+                          <b className="price">
+                            {state.upgrades.includes(u.id)
+                              ? "✓"
+                              : `◈ ${u.cost}`}
+                          </b>
+                        </h3>
+                        <p>{u.detail}</p>
+                        <button
+                          disabled={!near || state.upgrades.includes(u.id)}
+                          onClick={() => reviewPurchase(u, "upgrade")}
+                        >
+                          {state.upgrades.includes(u.id)
+                            ? "Part of your neighborhood"
+                            : "Make this improvement"}
+                        </button>
+                      </article>
+                    ))}
+                </>
+              )}
               {selected === "hall" && (
                 <article>
                   <h3>Kitchen account · {state.bill} due</h3>
@@ -929,6 +1070,66 @@ function App() {
               )}
             </>
           )}
+          {(tab === "Projects" || (tab === "Explore" && section === "Town")) &&
+            projects
+              .filter((pr) => state.contracts[pr.id]?.status === "active")
+              .map((pr) => (
+                <article key={`progress-${pr.id}`}>
+                  <h3>{pr.name} · shared progress</h3>
+                  <ul>
+                    {projectSteps(state, pr.id).map((step) => (
+                      <li key={step.label}>
+                        {step.done ? "✓" : "○"} {step.label}
+                      </li>
+                    ))}
+                  </ul>
+                  <p>
+                    Next:{" "}
+                    {projectSteps(state, pr.id).find((step) => !step.done)
+                      ?.label || "Reconcile the reward at the project district"}
+                  </p>
+                  {Object.entries(state.projectWork?.[pr.id] || {}).map(
+                    ([id, rows]: any) => (
+                      <p key={id}>
+                        {state.players.find((p: any) => p.id === id)?.name}:{" "}
+                        {rows.join(" · ")}
+                      </p>
+                    ),
+                  )}
+                </article>
+              ))}
+          {(tab === "Projects" || tab === "Ledger") &&
+            state.outcomes?.slice(-3).map((o: any, i: number) => (
+              <article key={`outcome-${i}`}>
+                <h3>
+                  {projects.find((p) => p.id === o.project)?.name} · outcome
+                </h3>
+                <p>
+                  Reward: {o.reward} credits. Income during project:{" "}
+                  {o.income ?? "Historical total unavailable"}. Spending during
+                  project: {o.spending ?? "Historical total unavailable"}. Net
+                  during project: {o.net ?? "Unavailable"}.
+                </p>
+                <small>
+                  Includes all cooperative and personal transactions during this
+                  commitment, including other work; this is not product-level
+                  profit.
+                </small>
+                <p>
+                  {o.project === "garden"
+                    ? "Water reaches the garden beds."
+                    : o.project === "market"
+                      ? "Orders delivered and stall stocked."
+                      : "Community hall furnished and lighting ready."}
+                </p>
+                {Object.entries(o.contributions).map(([id, rows]: any) => (
+                  <p key={id}>
+                    {state.players.find((p: any) => p.id === id)?.name}:{" "}
+                    {rows.join(" · ")}
+                  </p>
+                ))}
+              </article>
+            ))}
           {tab === "Projects" &&
             projects.map((pr) => {
               const c = state.contracts[pr.id];
@@ -1071,11 +1272,26 @@ function App() {
               <article>
                 <h3>Your notebook</h3>
                 <p>Evidence is shared with your cooperative.</p>
-                {state.evidence.map((e: string) => (
-                  <p key={e}>
-                    ✓ {activities.find((a) => a.evidence === e)?.observation}
-                  </p>
-                ))}
+                {state.evidence.map((e: string) => {
+                  const a = activities.find((a) => a.evidence === e);
+                  return (
+                    <article key={e}>
+                      <h4>{a?.name || e}</h4>
+                      <p>{state.evidenceDocuments?.[e] || e}</p>
+                      <button
+                        onClick={() =>
+                          send("ping", {
+                            target: a?.district || selected,
+                            text: "Inspect this",
+                            item: e,
+                          })
+                        }
+                      >
+                        Share evidence reference
+                      </button>
+                    </article>
+                  );
+                })}
               </article>
             </>
           )}

@@ -1,0 +1,66 @@
+{
+  "schema": 2,
+  "simTime": 0,
+  "crops": [],
+  "code": "LEGACY",
+  "revision": 1,
+  "day": 1,
+  "seconds": 0,
+  "mode": "life",
+  "review": false,
+  "funds": 282,
+  "players": [
+    {
+      "id": "p1",
+      "name": "Fixture Neighbor",
+      "token": "non-production-fixture-token",
+      "x": -15,
+      "z": -7,
+      "online": true,
+      "money": 0,
+      "bag": {
+        "connector": 1
+      },
+      "seen": [],
+      "daily": []
+    }
+  ],
+  "storage": {
+    "tool": 1
+  },
+  "upgrades": [],
+  "evidence": [],
+  "ledger": [],
+  "contracts": {
+    "garden": {
+      "status": "complete",
+      "due": 3,
+      "variant": 0
+    }
+  },
+  "pending": [
+    {
+      "id": "legacy-request",
+      "by": "p1",
+      "kind": "buy",
+      "target": "seed",
+      "cost": 12
+    }
+  ],
+  "radio": [],
+  "processed": [],
+  "bill": 0,
+  "variant": 0,
+  "companion": true,
+  "movementSequence": 4,
+  "totals": {
+    "shared": {
+      "income": 0,
+      "expense": -18,
+      "transfer": 0
+    }
+  },
+  "totalsComplete": true,
+  "contributions": {},
+  "decisions": []
+}

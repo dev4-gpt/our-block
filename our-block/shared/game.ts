@@ -1,5 +1,8 @@
+import { debitLots, inventoryAt, refundPlan, type Lot } from "./provenance.ts";
 import { route } from "./navigation.ts";
 import {
+  townOffers,
+  evidenceText,
   activities,
   districts,
   offers,
@@ -31,7 +34,17 @@ export type Ledger = {
   category?: "income" | "expense" | "transfer" | "note";
 };
 export type Town = {
-  schema: 2;
+  schema: 3;
+  lots: Lot[];
+  projectWork: Record<string, Record<string, string[]>>;
+  outcomes: {
+    project: string;
+    reward: number;
+    spending: number | null;
+    income: number | null;
+    net: number | null;
+    contributions: Record<string, string[]>;
+  }[];
   movementSequence: number;
   totals: Record<string, { income: number; expense: number; transfer: number }>;
   totalsComplete: boolean;
@@ -54,7 +67,12 @@ export type Town = {
   ledger: Ledger[];
   contracts: Record<
     string,
-    { due: number; status: "active" | "complete" | "expired"; variant: number }
+    {
+      due: number;
+      status: "active" | "complete" | "expired";
+      variant: number;
+      baseline?: { income: number; expense: number };
+    }
   >;
   pending: {
     id: string;
@@ -95,7 +113,10 @@ export function createTown(
   mode: "life" | "explore" = "life",
 ): Town {
   return {
-    schema: 2,
+    schema: 3,
+    lots: [],
+    projectWork: {},
+    outcomes: [],
     movementSequence: 0,
     totals: {},
     totalsComplete: true,
@@ -143,15 +164,23 @@ export function join(t: Town, name: string, token: string) {
   t.revision++;
   return p;
 }
-export class GameRuleError extends Error {}
-function need(ok: unknown, message: string): asserts ok {
-  if (!ok) throw new GameRuleError(message);
+export class GameRuleError extends Error {
+  constructor(
+    message: string,
+    public code = "RULE",
+  ) {
+    super(message);
+  }
+}
+function need(ok: unknown, message: string, code = "RULE"): asserts ok {
+  if (!ok) throw new GameRuleError(message, code);
 }
 function near(p: Player, d: string) {
   const a = districts.find((x) => x.id === d);
   need(
     a && Math.hypot(p.x - a.x, p.z - a.z) <= 7,
     "Walk closer to this district to interact.",
+    "DISTANCE",
   );
 }
 function add(b: Bag, k: string, n: number) {
@@ -164,6 +193,32 @@ function has(b: Bag, items: Bag) {
 function consume(b: Bag, items: Bag) {
   need(has(b, items), "You need the listed supplies in your backpack.");
   for (const [k, n] of Object.entries(items)) add(b, k, -n);
+}
+function consumeAt(
+  t: Town,
+  location: string,
+  required: Bag,
+  destination?: string,
+) {
+  const bag = inventoryAt(t, location);
+  need(has(bag, required), "You need the listed supplies in your backpack.");
+  for (const [item, qty] of Object.entries(required))
+    debitLots(t, location, item, qty, destination);
+  consume(bag, required);
+}
+function work(t: Town, p: Player, text: string) {
+  t.contributions[p.id] = text;
+  for (const [id, c] of Object.entries(t.contracts))
+    if (c.status === "active") {
+      const rows = ((t.projectWork[id] ??= {})[p.id] ??= []);
+      if (!rows.includes(text)) rows.push(text);
+    }
+}
+function financials(t: Town) {
+  return Object.values(t.totals).reduce(
+    (n, v) => ({ income: n.income + v.income, expense: n.expense + v.expense }),
+    { income: 0, expense: 0 },
+  );
 }
 function count(b: Bag) {
   return Object.values(b).reduce((a, b) => a + b, 0);
@@ -199,7 +254,7 @@ function purchase(
   account: string,
 ) {
   if (kind === "buy") {
-    const o = offers.find((x) => x.id === target)!;
+    const o = townOffers(t).find((x) => x.id === target)!;
     need(o, "Offer not found.");
     if (o.id === "delivery-fee")
       need(
@@ -209,8 +264,19 @@ function purchase(
     need(
       count(p.bag) + o.qty <= limit(t),
       "Your backpack is full. Store or use supplies first.",
+      "INVENTORY_FULL",
     );
     add(p.bag, o.item, o.qty);
+    t.lots.push({
+      id: `lot-${t.revision}-${t.lots.length}`,
+      offer: o.id,
+      item: o.item,
+      qty: o.qty,
+      unitPaid: o.price / o.qty,
+      payer: account,
+      location: p.id,
+    });
+    work(t, p, `Acquired ${o.name}`);
   } else if (kind === "upgrade") {
     need(!t.upgrades.includes(target), "Already improved.");
     t.upgrades.push(target);
@@ -227,7 +293,7 @@ function purchase(
 }
 function costOf(t: Town, kind: string, target: string) {
   return kind === "buy"
-    ? offers.find((x) => x.id === target)?.price
+    ? townOffers(t).find((x) => x.id === target)?.price
     : kind === "upgrade"
       ? upgrades.find((x) => x.id === target)?.cost
       : t.bill;
@@ -287,7 +353,19 @@ export function apply(
       districts.some((x) => x.id === target) && pings.includes(c.text as any),
       "Choose a contextual request and landmark.",
     );
-    t.radio.push({ id: c.id, by: p.name, district: target, text: c.text! });
+    if (c.item)
+      need(
+        t.evidence.includes(c.item),
+        "Inspect this evidence before sharing it.",
+      );
+    t.radio.push({
+      id: c.id,
+      by: p.name,
+      district: target,
+      text: c.item
+        ? `${c.text}: ${activities.find((a) => a.evidence === c.item)?.name || c.item}`
+        : c.text!,
+    });
     t.radio = t.radio.slice(-15);
   } else if (c.type === "ack") {
     const ping = t.radio.find((x) => x.id === target);
@@ -337,8 +415,8 @@ export function apply(
           c.item === "connector" || c.item === "hose",
           "Choose a compatible carried repair part. Unused incompatible parts can be returned at Market.",
         );
-        consume(p.bag, { [c.item]: 1 });
-        if (t.contracts.garden.variant === 1) consume(p.bag, { filter: 1 });
+        consumeAt(t, p.id, { [c.item]: 1 });
+        if (t.contracts.garden.variant === 1) consumeAt(t, p.id, { filter: 1 });
         t.gardenRepair = { part: c.item, by: p.id, tested: false };
         message =
           "Part fitted. The connection still needs a water test before delivery.";
@@ -355,10 +433,13 @@ export function apply(
         message =
           "Water test passed: the beds receive water and the connection holds. Complete the project to receive its reward.";
       }
-      t.contributions[p.id] =
+      work(
+        t,
+        p,
         c.type === "fit"
           ? "Fitted the garden connection"
-          : "Tested the water connection";
+          : "Tested the water connection",
+      );
       record(t, `${p.name}: ${message}`);
     } else if (c.type === "activity") {
       const a = activities.find((x) => x.id === target);
@@ -373,7 +454,8 @@ export function apply(
           t.crops.length < 6,
           "All six garden beds are occupied. Harvest before planting more.",
         );
-        if (!t.upgrades.includes("irrigation")) consume(p.bag, { water: 1 });
+        if (!t.upgrades.includes("irrigation"))
+          consumeAt(t, p.id, { water: 1 });
         t.crops.push({ ready: t.simTime + 30, by: p.id });
       }
       if (a.requires === "harvest") {
@@ -391,20 +473,22 @@ export function apply(
           "Rent the kitchen and pay any outstanding bill first.",
         );
       if (a.requires === "pack") {
-        consume(p.bag, { produce: 1 });
-        if (!(p.bag.reused > 0)) consume(p.bag, { pack: 1 });
+        consumeAt(t, p.id, { produce: 1 });
+        if (!(p.bag.reused > 0)) consumeAt(t, p.id, { pack: 1 });
       }
-      if (a.input) consume(p.bag, a.input);
+      if (a.input) consumeAt(t, p.id, a.input);
       if (a.output)
         for (const [k, n] of Object.entries(a.output)) add(p.bag, k, n);
       need(
         count(p.bag) <= limit(t),
         "Your backpack is full. Store supplies first.",
+        "INVENTORY_FULL",
       );
       if (a.evidence) {
         grant(t, p, a.evidence);
-        t.contributions[p.id] = a.name;
+        work(t, p, a.name);
       }
+      if (!a.evidence) work(t, p, a.name);
       if (a.onceDay) p.daily.push(a.id);
       let pay = a.pay || 0;
       if (a.id === "sell" && t.upgrades.includes("stall")) pay += 5;
@@ -414,12 +498,12 @@ export function apply(
         record(t, `${p.name}: ${a.name}`, pay, p.id);
       }
       record(t, `${p.name}: ${a.name}`);
-      message = a.observation || a.description;
+      message = a.evidence ? evidenceText(t, a.evidence) : a.description;
     } else if (["buy", "upgrade", "bill"].includes(c.type)) {
       const kind = c.type;
       const def =
         kind === "buy"
-          ? offers.find((x) => x.id === target)
+          ? townOffers(t).find((x) => x.id === target)
           : upgrades.find((x) => x.id === target);
       if (kind !== "bill") {
         need(def, "Not found.");
@@ -433,11 +517,13 @@ export function apply(
       need(
         (personal ? p.money : t.funds) >= cost,
         "Not enough credits. Free jobs are available at Home, Market and Hall.",
+        "INSUFFICIENT_FUNDS",
       );
       if (!personal && t.players.some((x) => x.online && x.id !== p.id)) {
         need(
           !t.pending.some((x) => x.by === p.id),
           "You already have a purchase awaiting approval.",
+          "PENDING_APPROVAL",
         );
         t.pending.push({ id: c.id, by: p.id, kind: kind as any, target, cost });
         message = "A teammate must approve this shared purchase.";
@@ -499,7 +585,12 @@ export function apply(
       const toStore = c.direction === "store";
       const from = toStore ? p.bag : t.storage,
         to = toStore ? t.storage : p.bag;
-      consume(from, { [c.item]: c.qty! });
+      consumeAt(
+        t,
+        toStore ? p.id : "storage",
+        { [c.item]: c.qty! },
+        toStore ? "storage" : p.id,
+      );
       add(to, c.item, c.qty!);
       need(count(p.bag) <= limit(t), "Backpack capacity exceeded.");
       need(
@@ -522,9 +613,9 @@ export function apply(
         c.item && Number.isInteger(c.qty) && c.qty! > 0,
         "Invalid quantity.",
       );
-      consume(p.bag, { [c.item]: c.qty! });
+      consumeAt(t, p.id, { [c.item]: c.qty! }, other.id);
       add(other.bag, c.item, c.qty!);
-      t.contributions[p.id] = "Shared repair or project supplies";
+      work(t, p, "Shared repair or project supplies");
       need(count(other.bag) <= limit(t), "Their backpack is full.");
     } else if (c.type === "deposit") {
       near(p, "home");
@@ -537,7 +628,7 @@ export function apply(
       record(t, `${p.name} contributed earnings`, c.qty!, "shared", "transfer");
       record(t, "Contribution to cooperative", -c.qty!, p.id, "transfer");
     } else if (c.type === "refund") {
-      const o = offers.find((x) => x.id === target);
+      const o = townOffers(t).find((x) => x.id === target);
       need(o, "Offer not found.");
       near(p, o.district);
       if (o.id === "delivery-fee")
@@ -545,24 +636,69 @@ export function apply(
           t.evidence.includes("verified"),
           "Contact the original depot desk to dispute this payment first.",
         );
-      consume(p.bag, { [o.item]: o.qty });
-      t.funds += o.price;
-      record(t, `Returned unused ${o.name}`, o.price, "shared", "expense");
+      const plan = refundPlan(t, p.id, o.id, o.qty);
+      need(
+        plan,
+        "No complete unused purchased quantity is refundable. Free, used and unverifiable legacy supplies cannot be returned for credits.",
+        "NOT_REFUNDABLE",
+      );
+      need(
+        (p.bag[o.item] || 0) >= o.qty,
+        "You need the refundable supplies in your backpack.",
+      );
+      const amounts: Record<string, number> = {};
+      for (const row of plan) {
+        row.lot.qty -= row.qty;
+        amounts[row.lot.payer] = (amounts[row.lot.payer] || 0) + row.amount;
+      }
+      t.lots = t.lots.filter((l) => l.qty > 0);
+      add(p.bag, o.item, -o.qty);
+      for (const [payer, amount] of Object.entries(amounts)) {
+        if (payer === "shared") t.funds += amount;
+        else {
+          const original = t.players.find((p) => p.id === payer);
+          need(original, "Original payer is unavailable.");
+          original.money += amount;
+        }
+        record(
+          t,
+          `Returned unused ${o.name} to original payer`,
+          amount,
+          payer,
+          "expense",
+        );
+      }
       message =
-        o.id === "delivery-fee"
-          ? "The depot resolved this fictional payment dispute. 25 credits returned to cooperative funds. Real-world refunds are not guaranteed; checking before paying is safer."
-          : "Refund returned to cooperative funds.";
+        "Unused purchase refunded to its original payer. Used units and free supplies are not refundable.";
     } else if (c.type === "accept" || c.type === "renegotiate") {
       const pr = projects.find((x) => x.id === target);
       need(pr, "Project not found.");
       near(p, pr.district);
       need(t.contracts[target]?.status !== "active", "Already accepted.");
+      const previousContract = t.contracts[target];
       t.contracts[target] = {
         due: t.day + pr.deadline,
         status: "active",
+        baseline: financials(t),
         variant:
           (t.contracts[target] ? t.contracts[target].variant + 1 : 0) % 2,
       };
+      t.projectWork[target] = {};
+      if (previousContract && target !== "garden") {
+        const reset = target === "market" ? ["receipt"] : ["verified", "terms"];
+        t.evidence = t.evidence.filter((e) => !reset.includes(e));
+        for (const resident of t.players)
+          resident.seen = resident.seen.filter((e) => !reset.includes(e));
+      }
+      if (target === "garden") {
+        t.variant = t.contracts[target].variant;
+        const reset = ["leak", "diagnosis", "sizes"];
+        if (previousContract) {
+          t.evidence = t.evidence.filter((e) => !reset.includes(e));
+          for (const resident of t.players)
+            resident.seen = resident.seen.filter((e) => !reset.includes(e));
+        }
+      }
       if (target === "garden") {
         delete t.gardenRepair;
         t.contributions = {};
@@ -593,17 +729,17 @@ export function apply(
       }
       if (target === "market") {
         need(t.evidence.includes("receipt"), "Check the delivery board first.");
-        consume(p.bag, { parcel: contract.variant === 1 ? 2 : 1 });
+        consumeAt(t, p.id, { parcel: contract.variant === 1 ? 2 : 1 });
       }
       if (target === "evening") {
         need(
           ["verified", "terms"].every((x) => t.evidence.includes(x)),
           "Check the hire agreement and verify the message with the depot desk.",
         );
-        consume(p.bag, { repair: contract.variant === 1 ? 2 : 1 });
-        if (p.bag.meal) consume(p.bag, { meal: 1 });
-        else consume(p.bag, { parcel: 1 });
-        if (!t.upgrades.includes("event")) consume(p.bag, { lamp: 1 });
+        consumeAt(t, p.id, { repair: contract.variant === 1 ? 2 : 1 });
+        if (p.bag.meal) consumeAt(t, p.id, { meal: 1 });
+        else consumeAt(t, p.id, { parcel: 1 });
+        if (!t.upgrades.includes("event")) consumeAt(t, p.id, { lamp: 1 });
       }
       contract.status = "complete";
       const reward =
@@ -611,6 +747,19 @@ export function apply(
         (target === "market" && t.upgrades.includes("shelves") ? 5 : 0);
       t.funds += reward;
       record(t, `${pr.name}: completed together`, reward);
+      const end = financials(t),
+        base = contract.baseline;
+      t.outcomes.push({
+        project: target,
+        reward,
+        spending: base ? -(end.expense - base.expense) : null,
+        income: base ? end.income - base.income : null,
+        net: base
+          ? end.income - base.income + end.expense - base.expense
+          : null,
+        contributions: structuredClone(t.projectWork[target] || {}),
+      });
+      t.outcomes = t.outcomes.slice(-12);
       message = `${pr.name} complete! The neighborhood changes because of your work.`;
     } else if (c.type === "return-kitchen") {
       near(p, "hall");
@@ -635,7 +784,7 @@ export function apply(
         count(t.storage) < 30 + (t.upgrades.includes("storage") ? 30 : 0),
         "Storage is full.",
       );
-      consume(p.bag, { [c.item]: 1 });
+      consumeAt(t, p.id, { [c.item]: 1 }, "storage");
       add(t.storage, c.item, 1);
       message = "EMBER stored one item at the clubhouse.";
     } else throw new GameRuleError("Unknown action.");
@@ -692,6 +841,16 @@ export function snapshot(t: Town, id: string) {
   return {
     ...t,
     processed: undefined,
+    lots: undefined,
+    evidenceDocuments: Object.fromEntries(
+      t.evidence.map((e) => [e, evidenceText(t, e)]),
+    ),
+    refundable: Object.fromEntries(
+      townOffers(t).map((o) => [
+        o.id,
+        refundPlan(t, id, o.id, o.qty) ? o.qty : 0,
+      ]),
+    ),
     players: t.players.map(({ token, ...p }) => ({
       ...p,
       seen: p.id === id ? p.seen : undefined,
@@ -701,7 +860,7 @@ export function snapshot(t: Town, id: string) {
 }
 export function restore(raw: any): Town {
   need(
-    (raw?.schema === 1 || raw?.schema === 2) &&
+    (raw?.schema === 1 || raw?.schema === 2 || raw?.schema === 3) &&
       Array.isArray(raw.players) &&
       Array.isArray(raw.ledger) &&
       !!raw.contracts &&
@@ -710,7 +869,38 @@ export function restore(raw: any): Town {
   );
   const t = raw as Town;
   const migrated = raw.schema === 1;
-  t.schema = 2;
+  t.schema = 3;
+  t.lots ??= [];
+  need(
+    Array.isArray(t.lots) &&
+      t.lots.every(
+        (l) =>
+          typeof l.id === "string" &&
+          typeof l.offer === "string" &&
+          typeof l.item === "string" &&
+          typeof l.payer === "string" &&
+          Number.isSafeInteger(l.qty) &&
+          l.qty > 0 &&
+          Number.isFinite(l.unitPaid) &&
+          l.unitPaid > 0 &&
+          (l.location === "storage" ||
+            t.players.some((p) => p.id === l.location)),
+      ),
+    "Invalid purchase provenance; preserve this backup.",
+  );
+  for (const location of ["storage", ...t.players.map((p) => p.id)])
+    for (const item of new Set(
+      t.lots.filter((l) => l.location === location).map((l) => l.item),
+    ))
+      need(
+        t.lots
+          .filter((l) => l.location === location && l.item === item)
+          .reduce((a, l) => a + l.qty, 0) <=
+          (inventoryAt(t, location)[item] || 0),
+        "Invalid refundable inventory; preserve this backup.",
+      );
+  t.projectWork ??= {};
+  t.outcomes ??= [];
   t.movementSequence ??= 0;
   t.contributions ??= {};
   t.decisions ??= [];

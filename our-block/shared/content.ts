@@ -495,3 +495,46 @@ export const pings = [
   "Bring this",
   "Approve purchase",
 ] as const;
+
+/** Authored repeat commission: same legal capabilities, different prices and claim context. */
+export function townOffers(t: { variant?: number } | null) {
+  if (!t || (t.variant || 0) % 2 === 0) return offers;
+  return offers.map((o) =>
+    o.id === "connector"
+      ? {
+          ...o,
+          name: "Service coupler · 20 mm",
+          price: 21,
+          detail:
+            "Cedar repair counter · one 20 mm service coupler · 21 credits total · full refund unused",
+        }
+      : o.id === "hose"
+        ? {
+            ...o,
+            name: "Complete service hose · 20 mm",
+            price: 33,
+            detail:
+              "One service hose with 20 mm coupler · 33 credits total · full refund unused",
+          }
+        : o.id === "seed"
+          ? {
+              ...o,
+              price: 15,
+              detail:
+                "Three seed packets · 5 credits each · full refund unused",
+            }
+          : o,
+  );
+}
+export function evidenceText(t: { variant?: number }, evidence: string) {
+  const a = activities.find((a) => a.evidence === evidence);
+  if ((t.variant || 0) % 2 === 1) {
+    if (evidence === "leak")
+      return "The service connection leaks and its protective screen is worn. A new notice claims that only a complete pump replacement can restore flow, but supplies no test results.";
+    if (evidence === "diagnosis")
+      return "Pressure test: the pump and hose work. The 20 mm service coupler leaks; its screen needs a repair pad. A coupler or service hose plus one protective pad can repair this connection.";
+    if (evidence === "sizes")
+      return "Counter specifications: coupler 20 mm, 21 credits; adapter 25 mm, 9 credits; complete 20 mm service hose, 33 credits. The sockets measure 20 mm. Both listed service options have unused returns.";
+  }
+  return a?.observation || evidence;
+}

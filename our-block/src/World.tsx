@@ -31,6 +31,11 @@ export default function World({
     }
     const el = host.current!;
     el.appendChild(renderer.domElement);
+    const contextLost = (e: Event) => {
+      e.preventDefault();
+      onFail();
+    };
+    renderer.domElement.addEventListener("webglcontextlost", contextLost);
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.6));
     renderer.setClearColor("#dce7e5");
     renderer.shadowMap.enabled = true;
@@ -216,6 +221,23 @@ export default function World({
         box(0.8, 0.6, 0.8, d.x - 2 + i * 2, 0.6, d.z + 4, "#e8bc59", g);
       g.visible = false;
     }
+    const packedOrders = new T.Group();
+    scene.add(packedOrders);
+    for (let i = 0; i < 4; i++)
+      box(0.8, 0.7, 0.8, -2 + i * 1.3, 0.7, 15, "#c89d62", packedOrders);
+    const deliveredStock = new T.Group();
+    scene.add(deliveredStock);
+    for (let i = 0; i < 5; i++)
+      box(0.7, 0.6, 0.7, -3 + i * 1.3, 0.8, -8, "#779f63", deliveredStock);
+    const eveningFurniture = new T.Group();
+    scene.add(eveningFurniture);
+    box(5, 0.2, 2, 15, 1.2, 16, "#f6edd1", eveningFurniture);
+    for (const dx of [-2, 0, 2]) {
+      box(0.8, 0.8, 0.8, 15 + dx, 0.6, 18, "#a98a6d", eveningFurniture);
+      box(0.4, 0.5, 0.4, 15 + dx, 1.55, 16, "#f3c466", eveningFurniture);
+    }
+    for (const dx of [-4, 4])
+      box(0.5, 0.7, 0.5, 15 + dx, 3, 15, "#ffe1a0", eveningFurniture);
     const upgradeMarks = new Map<string, T.Group>();
     const upgradeIds = [
       "storage",
@@ -306,6 +328,11 @@ export default function World({
       const watered =
         !!s?.gardenRepair?.tested ||
         s?.contracts?.garden?.status === "complete";
+      packedOrders.visible = (s?.players || []).some(
+        (p: any) => (p.bag?.parcel || 0) > 0,
+      );
+      deliveredStock.visible = s?.contracts?.market?.status === "complete";
+      eveningFurniture.visible = s?.contracts?.evening?.status === "complete";
       fitting.visible = !!s?.gardenRepair;
       water.visible = watered;
       for (const plant of gardenPlants) {
@@ -371,6 +398,7 @@ export default function World({
       cancelAnimationFrame(frame);
       resize.disconnect();
       controls.dispose();
+      renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       renderer.dispose();
       scene.traverse((o) => {
         if (o instanceof T.Mesh) o.geometry.dispose();

@@ -32,6 +32,11 @@ if (
   throw Error(
     "Public runs require --public, HTTPS and LOAD_REMAINING_BYTES from current provider allowance.",
   );
+const sparse = process.env.LOAD_SPARSE === "1";
+if (sparse && (!local || stages.join(",") !== "4"))
+  throw Error("Sparse soak is local-only with four clients.");
+if (sparse && budget < 20000000)
+  throw Error("Sparse soak forecast requires at least 20 MB remaining budget.");
 let bytes = 0,
   proc: ChildProcess | undefined,
   temporary: string | undefined,
@@ -314,9 +319,28 @@ try {
           throw Error("Sustained latency/error failure");
       } else badSince = 0;
       round++;
-      await sleep(
-        Math.min(3000, Math.max(0, started + duration * 1000 - Date.now())),
+      const wake = Math.min(
+        started + duration * 1000,
+        sparse ? started + round * 300000 : Date.now() + 3000,
       );
+      while (Date.now() < wake) {
+        await sleep(Math.min(5000, wake - Date.now()));
+        check();
+        if (sparse) {
+          const health = await fetch(origin + "/health");
+          const raw = await health.text();
+          bytes += Buffer.byteLength(raw);
+          const sample = JSON.parse(raw);
+          peakRss = Math.max(peakRss, sample.rss || 0);
+          if (sample.rss > 400 * 1024 * 1024) {
+            memorySince ||= Date.now();
+            if (Date.now() - memorySince >= 10000)
+              throw Error("Memory above 400 MiB for 10 seconds");
+          } else memorySince = 0;
+          if (!sample.ok || sample.online !== 4)
+            throw Error("Soak readiness or resident count failed");
+        }
+      }
     }
     const report = {
       clients: count,
@@ -356,6 +380,11 @@ try {
         scope: local ? "local SQLite rehearsal" : "public service",
         origin,
         budget,
+        sparse,
+        forecastBytes: sparse ? 20000000 : undefined,
+        sourceRef:
+          process.env.MEASUREMENT_REF ||
+          "working candidate; record commit separately",
         totalBytes: bytes,
         aborted,
         reports,

@@ -123,7 +123,8 @@ for (const alternative of [false, true])
     s.at("hall");
     s.act("accept", { target: "evening" });
     s.act("activity", { target: "terms" });
-    s.act("buy", { target: "lamp" });
+    if (alternative) s.act("upgrade", { target: "event" });
+    else s.act("buy", { target: "lamp" });
     if (alternative) s.act("upgrade", { target: "kitchen" });
     s.at("workshop");
     s.act("buy", { target: "filter" });

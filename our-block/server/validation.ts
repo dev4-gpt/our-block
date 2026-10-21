@@ -15,7 +15,7 @@ const fields: Record<string, string[]> = {
   renegotiate: ["target"],
   complete: ["target"],
   abandon: ["target"],
-  ping: ["target", "text"],
+  ping: ["target", "text", "item"],
   ack: ["target"],
   next: [],
   "return-kitchen": [],

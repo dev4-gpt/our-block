@@ -33,6 +33,9 @@ try {
     equal(actual.evidence, expected.evidence);
     equal(actual.upgrades, expected.upgrades);
     equal(actual.totals, expected.totals);
+    equal(actual.lots, expected.lots);
+    equal(actual.outcomes, expected.outcomes);
+    equal(actual.projectWork, expected.projectWork);
     equal(
       actual.players.map((p) => [p.id, p.token, p.money, p.bag]),
       expected.players.map((p: any) => [p.id, p.token, p.money, p.bag]),

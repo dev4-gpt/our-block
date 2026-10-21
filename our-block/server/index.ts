@@ -285,7 +285,11 @@ wss.on("connection", (ws, req) => {
           send(ws, {
             type: "error",
             id: m?.id,
-            code: publicError ? errorCode(message) : "STORAGE",
+            code: publicError
+              ? e instanceof GameRuleError && e.code !== "RULE"
+                ? e.code
+                : errorCode(message)
+              : "STORAGE",
             message: publicError
               ? message
               : "Save unavailable. No action was confirmed. Reconnect and review the town before trying again.",

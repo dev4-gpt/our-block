@@ -210,3 +210,61 @@ test("movement avoids immediate database writes and flushes periodically; econom
   assert.equal(service.towns.get(t.code)!.players[0].money, 8);
   await service.close();
 });
+
+for (const backend of backends)
+  test(`${backend}: original-payer refund is durable, transactional and restart-idempotent`, async () => {
+    const dir = mkdtempSync(pathJoin(tmpdir(), "block-refund-"));
+    const open = async () =>
+      backend === "sqlite"
+        ? new SQLiteStore(pathJoin(dir, "save.sqlite"))
+        : await PostgresStore.open(process.env.TEST_DATABASE_URL!);
+    let store = await open(),
+      service = new TownService(store);
+    const t = createTown(
+      "R" + Date.now() + Math.random().toString(16).slice(2, 6),
+      "explore",
+    );
+    join(t, "A", "refund-private");
+    t.players[0].money = 50;
+    t.players[0].x = 0;
+    t.players[0].z = -12;
+    try {
+      await service.commit(t);
+      await service.action(t.code, "p1", {
+        v: 1,
+        id: "purchase",
+        revision: t.revision,
+        type: "buy",
+        target: "connector",
+        account: "personal",
+      });
+      const bought = service.towns.get(t.code)!;
+      const refund = {
+        v: 1 as const,
+        id: "return",
+        revision: bought.revision,
+        type: "refund",
+        target: "connector",
+      };
+      const results = await Promise.allSettled([
+        service.action(t.code, "p1", refund),
+        service.action(t.code, "p1", { ...refund, id: "racing-return" }),
+      ]);
+      assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+      assert.equal(service.towns.get(t.code)!.players[0].money, 50);
+      await service.close();
+      store = await open();
+      service = new TownService(store);
+      const saved = await service.ensure(t.code);
+      assert(saved);
+      saved.players[0].online = true;
+      await service.commit(saved);
+      await service.action(t.code, "p1", refund);
+      assert.equal(service.towns.get(t.code)!.funds, 300);
+      assert.equal(service.towns.get(t.code)!.players[0].money, 50);
+      assert.equal(service.towns.get(t.code)!.lots.length, 0);
+    } finally {
+      await service.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });

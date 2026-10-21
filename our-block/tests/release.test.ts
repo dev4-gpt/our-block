@@ -117,7 +117,7 @@ test("schema-1 fixture preserves balances, labels partial history and cancels un
     readFileSync(new URL("./fixtures/schema-1.json", import.meta.url), "utf8"),
   );
   const t = restore(old);
-  assert.equal(t.schema, 2);
+  assert.equal(t.schema, 3);
   assert.equal(t.funds, 282);
   assert.equal(t.players[0].bag.connector, 1);
   assert.equal(t.players[0].online, false);
