@@ -11,6 +11,7 @@ import {
 } from "../shared/content.ts";
 import "./style.css";
 import { gardenSteps, type Guidance } from "./guidance.ts";
+import DeviceCheck from "./DeviceCheck.tsx";
 import { commandId } from "./ids.ts";
 import { TownConnection } from "./connection.ts";
 const World = lazy(() => import("./World.tsx"));
@@ -43,7 +44,8 @@ function App() {
     [sound, setSound] = useState(false);
   const transport = useRef<TownConnection | null>(null),
     current = useRef<any>(null),
-    audio = useRef<AudioContext | null>(null);
+    audio = useRef<AudioContext | null>(null),
+    lastKeyboardMove = useRef(0);
   current.current = state;
   function connect(recover?: any) {
     transport.current?.stop();
@@ -80,7 +82,11 @@ function App() {
               JSON.stringify({ code: m.code, token: m.token }),
             );
           else localStorage.removeItem(storageKey);
-          history.replaceState({}, "", `?town=${m.code}`);
+          history.replaceState(
+            {},
+            "",
+            `?town=${m.code}${new URLSearchParams(location.search).get("deviceCheck") === "1" ? "&deviceCheck=1" : ""}`,
+          );
         }
         if (m.type === "state") {
           setState(m.state);
@@ -174,6 +180,8 @@ function App() {
       const v = delta[e.key];
       if (v) {
         e.preventDefault();
+        if (performance.now() - lastKeyboardMove.current < 100) return;
+        lastKeyboardMove.current = performance.now();
         send("move", {
           x: Math.max(-25, Math.min(25, p.x + v[0])),
           z: Math.max(-23, Math.min(23, p.z + v[1])),
@@ -350,6 +358,11 @@ function App() {
           {state.code}
         </span>
       </nav>
+      <p className="touch-help">
+        <strong>On a phone:</strong> tap the district buttons below the map to
+        walk. You can also tap the ground. Swipe the button row for more places.
+        Drag to turn the view; pinch to zoom.
+      </p>
       <main className="play">
         <section className="viewport">
           <div className="scene-top">
@@ -396,7 +409,10 @@ function App() {
             </Suspense>
           )}
           <div className="scene-bottom">
-            <span>WASD / arrows to walk · drag to rotate · scroll to zoom</span>
+            <span>
+              Tap a district button or the ground to walk · WASD / arrows also
+              work · drag to turn · pinch / scroll to zoom
+            </span>
             <button
               onClick={() => {
                 if (!sound) {
@@ -426,6 +442,9 @@ function App() {
           </div>
         </section>
         <aside>
+          {new URLSearchParams(location.search).get("deviceCheck") === "1" && (
+            <DeviceCheck map={map} connected={!connectionStatus} />
+          )}
           {state.availability && state.availability !== "ready" && (
             <div role="status" className="notice">
               {state.availability === "read-only"

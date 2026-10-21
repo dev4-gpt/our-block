@@ -139,7 +139,12 @@ class Peer {
     const r = this.responses.get(c.id),
       received = Date.now();
     if (r.type === "error") throw Error(r.message);
-    await until(() => this.state.revision >= (r.revision ?? 0), "full state");
+    await until(
+      () =>
+        this.state.revision >= (r.revision ?? 0) &&
+        this.state.movementSequence >= (r.movementSequence ?? 0),
+      "full state",
+    );
     delivery.push(Date.now() - received);
     this.sent.delete(c.id);
     return c;

@@ -126,7 +126,7 @@ export function createTown(
 }
 export function join(t: Town, name: string, token: string) {
   if (t.players.length >= 4)
-    throw Error("This town already has four residents.");
+    throw new GameRuleError("This town already has four residents.");
   const p: Player = {
     id: `p${t.players.length + 1}`,
     name: name.trim().slice(0, 24) || "Neighbor",
@@ -143,8 +143,9 @@ export function join(t: Town, name: string, token: string) {
   t.revision++;
   return p;
 }
+export class GameRuleError extends Error {}
 function need(ok: unknown, message: string): asserts ok {
-  if (!ok) throw Error(message);
+  if (!ok) throw new GameRuleError(message);
 }
 function near(p: Player, d: string) {
   const a = districts.find((x) => x.id === d);
@@ -637,7 +638,7 @@ export function apply(
       consume(p.bag, { [c.item]: 1 });
       add(t.storage, c.item, 1);
       message = "EMBER stored one item at the clubhouse.";
-    } else throw Error("Unknown action.");
+    } else throw new GameRuleError("Unknown action.");
   }
   t.processed.push(id + ":" + c.id);
   t.processed = t.processed.slice(-1000);

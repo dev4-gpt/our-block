@@ -171,3 +171,42 @@ test(
     }
   },
 );
+test("movement avoids immediate database writes and flushes periodically; economics still commit before response", async () => {
+  let writes = 0;
+  const store: TownStore = {
+    loadAll: async () => [],
+    save: async () => {
+      writes++;
+    },
+    importAll: async () => {},
+    close: async () => {},
+  };
+  const service = new TownService(store),
+    t = town("MOVESAVE");
+  await service.commit(t);
+  const before = writes;
+  await service.action(t.code, "p1", {
+    v: 1,
+    id: "move",
+    revision: t.revision,
+    type: "move",
+    x: -14,
+    z: -7,
+  });
+  assert.equal(writes, before);
+  await service.advance(t.code, 0.1, false);
+  assert.equal(writes, before);
+  await service.advance(t.code, 0.1, true);
+  assert.equal(writes, before + 1);
+  const latest = service.towns.get(t.code)!;
+  await service.action(t.code, "p1", {
+    v: 1,
+    id: "work",
+    revision: latest.revision,
+    type: "activity",
+    target: "maintain",
+  });
+  assert.equal(writes, before + 2);
+  assert.equal(service.towns.get(t.code)!.players[0].money, 8);
+  await service.close();
+});

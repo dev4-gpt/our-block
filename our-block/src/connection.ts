@@ -71,7 +71,8 @@ export class TownConnection {
   }
   send(command: { id: string; type: string; [key: string]: unknown }) {
     if (!this.ready || this.ws?.readyState !== 1) return false;
-    this.pending.add(command.id);
+    if (!["move", "ping", "ack"].includes(command.type))
+      this.pending.add(command.id);
     this.ws.send(JSON.stringify(command));
     return true;
   }

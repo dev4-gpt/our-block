@@ -13,7 +13,9 @@
     "migrate:cloud": "node --import tsx scripts/migrate-storage.ts",
     "backup": "node --import tsx scripts/backup-storage.ts",
     "restore": "node --import tsx scripts/restore-storage.ts",
-    "test:load": "node --import tsx scripts/load-test.ts"
+    "test:load": "node --import tsx scripts/load-test.ts",
+    "verify:backup": "node --import tsx scripts/verify-backup.ts",
+    "measure:assets": "node --import tsx scripts/measure-assets.ts"
   },
   "dependencies": {
     "pg": "^8.23.1",

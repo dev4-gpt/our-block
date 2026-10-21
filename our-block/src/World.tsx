@@ -39,12 +39,13 @@ export default function World({
     scene.fog = new T.Fog("#dce7e5", 75, 160);
     const camera = new T.PerspectiveCamera(42, 1, 0.1, 200);
     camera.position.set(42, 48, 52);
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 0, 0);
     controls.maxPolarAngle = Math.PI / 2.35;
     controls.minDistance = 12;
     controls.maxDistance = 95;
-    controls.enableDamping = true;
+    controls.enableDamping = !reduce;
     controls.enablePan = true;
     const sun = new T.DirectionalLight("#fff2ce", 3);
     sun.position.set(-25, 50, 15);
@@ -292,13 +293,12 @@ export default function World({
         h = el.clientHeight;
       renderer.setSize(w, h);
       camera.aspect = w / h;
-      camera.position
-        .set(42, 48, 52)
-        .multiplyScalar(Math.max(1, Math.sqrt(h / w)));
+      controls.maxDistance = 95 * Math.max(1, h / w);
+      camera.position.set(42, 48, 52).multiplyScalar(Math.max(1, h / w));
       camera.updateProjectionMatrix();
     });
     resize.observe(el);
-    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
     let wasFollowing = false;
     function animate() {
       frame = requestAnimationFrame(animate);
@@ -352,9 +352,7 @@ export default function World({
             controls.target.set(0, 0, 0);
             camera.position
               .set(42, 48, 52)
-              .multiplyScalar(
-                Math.max(1, Math.sqrt(el.clientHeight / el.clientWidth)),
-              );
+              .multiplyScalar(Math.max(1, el.clientHeight / el.clientWidth));
           }
           wasFollowing = latest.current.follow;
         }

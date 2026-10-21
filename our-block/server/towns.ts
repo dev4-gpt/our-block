@@ -176,18 +176,20 @@ export class TownService {
           "READ_ONLY: New contracts are paused to reserve space for existing projects.",
         );
       const result = apply(t, id, command);
-      if (!result.duplicate)
-        await this.commit(
-          result.town,
-          durable
-            ? {
-                player: id,
-                id: command.id,
-                fingerprint,
-                message: result.message,
-              }
-            : undefined,
-        );
+      if (!result.duplicate) {
+        if (durable)
+          await this.commit(result.town, {
+            player: id,
+            id: command.id,
+            fingerprint,
+            message: result.message,
+          });
+        else {
+          this.towns.set(code, result.town);
+          this.touched.set(code, Date.now());
+          this.dirty.add(code);
+        }
+      }
       return result;
     });
   }
@@ -199,7 +201,8 @@ export class TownService {
       disconnect(t, id);
       this.towns.set(code, t);
       this.dirty.add(code);
-      await this.commit(t);
+      const safe = this.uncertain.has(code) ? await this.ensure(code) : t;
+      if (safe) await this.commit(safe);
     });
   }
   advance(code: string, dt: number, flush: boolean) {
@@ -228,6 +231,7 @@ export class TownService {
     await Promise.all(
       [...this.towns.keys()].map((code) =>
         this.run(code, async () => {
+          if (this.uncertain.has(code)) await this.ensure(code);
           if (this.dirty.has(code)) await this.commit(this.towns.get(code)!);
         }),
       ),

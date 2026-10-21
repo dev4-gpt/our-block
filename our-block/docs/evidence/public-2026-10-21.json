@@ -1,0 +1,20 @@
+{
+  "sourceCommit": "7a1547774203d98446ce102cd25bcd48f6a9e0bd",
+  "renderDeployment": "dep-dbcfs7q9lscs73effvng",
+  "result": "Live, manual Free deployment, 47.8 seconds",
+  "health": {
+    "ok": true,
+    "protocol": 1,
+    "capacity": 4,
+    "availability": "ready"
+  },
+  "oldSave": "Saved seat, completed garden and 337 credits recovered after deployment.",
+  "fourSyntheticResidents": "Garden completed with 337 credits; private recovery data remains outside Git.",
+  "initialAttempt": "Stopped at admission limit while previous recovery-test seat had not fully disconnected. Retried only after health confirmed zero online seats.",
+  "humanFeedback": "User confirmed public Mac browser walking, phone page opening and district-button movement. Device model and FPS unknown.",
+  "limits": [
+    "Synthetic cooperation is not unfamiliar-pair acceptance.",
+    "No public 20/50/100-client capacity certification.",
+    "No educational-effectiveness claim."
+  ]
+}

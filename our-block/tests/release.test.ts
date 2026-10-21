@@ -244,3 +244,36 @@ test("lost COMMIT response reconciles durable state before a later decision or d
   assert.equal(recovered.town.players[0].online, true);
   assert.equal(persisted.players[0].money, 8);
 });
+test("disconnect and shutdown cannot overwrite an ambiguously committed transaction", async () => {
+  let persisted: any,
+    loseReply = false;
+  const store = {
+    loadAll: async () => [],
+    loadOne: async () => structuredClone(persisted),
+    save: async (t: any) => {
+      persisted = structuredClone(t);
+      if (loseReply) {
+        loseReply = false;
+        throw Error("lost commit reply");
+      }
+    },
+    importAll: async () => {},
+    close: async () => {},
+  };
+  const service = new TownService(store),
+    t = createTown("CLOSE");
+  join(t, "A", "fixture");
+  await service.commit(t);
+  loseReply = true;
+  await assert.rejects(
+    service.action(
+      t.code,
+      "p1",
+      command(t.revision, "job", "activity", { target: "maintain" }),
+    ),
+  );
+  await service.disconnect(t.code, "p1");
+  await service.close();
+  assert.equal(persisted.players[0].money, 8);
+  assert.equal(persisted.players[0].online, false);
+});

@@ -7,6 +7,7 @@ import { openStore } from "./storage.ts";
 import { TownService } from "./towns.ts";
 import { WebSocketServer, WebSocket } from "ws";
 import {
+  GameRuleError,
   createTown,
   join,
   apply,
@@ -117,6 +118,9 @@ const wss = new WebSocketServer({
   },
 });
 const clients = new Map<WebSocket, { code: string; id: string }>();
+const published = new Map<string, string>();
+const stamp = (t: Town) =>
+  `${t.revision}:${t.movementSequence}:${service.availability}`;
 function send(ws: WebSocket, x: unknown) {
   if (ws.readyState === WebSocket.OPEN) {
     const body = JSON.stringify(x);
@@ -129,6 +133,7 @@ function send(ws: WebSocket, x: unknown) {
   }
 }
 function broadcast(t: Town) {
+  published.set(t.code, stamp(t));
   for (const [ws, c] of clients)
     if (c.code === t.code)
       send(ws, {
@@ -153,14 +158,22 @@ wss.on("connection", (ws, req) => {
       start = Date.now();
     }
     if (++n > 30) {
-      send(ws, { type: "error", message: "Please slow down." });
+      send(ws, {
+        type: "error",
+        message: "Please slow down.",
+        code: "RATE_LIMIT",
+      });
       return;
     }
     incoming = incoming
       .then(async () => {
         let m: any;
         try {
-          m = JSON.parse(raw.toString());
+          try {
+            m = JSON.parse(raw.toString());
+          } catch {
+            throw Error("Invalid JSON message.");
+          }
           if (!m || typeof m !== "object") throw Error("Invalid message.");
           if (m.type === "join") {
             if (joinedOrJoining) throw Error("Already joined.");
@@ -258,19 +271,21 @@ wss.on("connection", (ws, req) => {
             message: result.message,
             code: "ACCEPTED",
             revision: result.town.revision,
+            movementSequence: result.town.movementSequence,
             duplicate: !!result.duplicate,
           });
-          broadcast(result.town);
+          if (m.type !== "move") broadcast(result.town);
         } catch (e) {
           const message = (e as Error).message;
           const publicError =
+            e instanceof GameRuleError ||
             /^(CAPACITY:|READ_ONLY:|STALE:|Already |Town |Seat |Invalid |Join |Unsupported |Walk |Choose |You |Not |No |A |The |This |Your |Their |Meet |Review |Rent |Contact |Resolve |Stay |Unknown |Accept |Renegotiate |Inspect |Check |All |One |Backpack |Shared |Please |Server )/.test(
               message,
             );
           send(ws, {
             type: "error",
             id: m?.id,
-            code: errorCode(message),
+            code: publicError ? errorCode(message) : "STORAGE",
             message: publicError
               ? message
               : "Save unavailable. No action was confirmed. Reconnect and review the town before trying again.",
@@ -315,11 +330,10 @@ const timer = setInterval(async () => {
   const flush = now - saveAt >= 2000;
   if (flush) saveAt = now;
   try {
-    const availabilityBefore = service.availability;
+    for (const code of published.keys())
+      if (!towns.has(code)) published.delete(code);
     await Promise.all(
       [...towns.keys()].map(async (code) => {
-        const sequence = towns.get(code)?.movementSequence,
-          revision = towns.get(code)?.revision;
         try {
           await service.advance(code, dt, flush);
         } catch {
@@ -328,9 +342,7 @@ const timer = setInterval(async () => {
         const t = towns.get(code);
         if (
           t?.players.some((p) => p.online) &&
-          (t.movementSequence !== sequence ||
-            t.revision !== revision ||
-            service.availability !== availabilityBefore)
+          published.get(code) !== stamp(t)
         )
           broadcast(t);
       }),

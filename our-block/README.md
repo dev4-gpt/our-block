@@ -47,7 +47,7 @@ The network suite binds port 3012 and uses a temporary database. It tests four r
 
 ## State and deployment
 
-The Node server owns movement paths, inventory, economy, deadlines and approvals. Commands use protocol version 1, unique action IDs and expected revisions. Every accepted command is saved in a SQLite transaction before acknowledgment. Movement/crop clock snapshots are saved every two seconds. A crash can lose up to two seconds of movement or growth, not an acknowledged purchase. Restarts disconnect all seats until recovered and cancel unfinished purchase requests.
+The Node server owns movement paths, inventory, economy, deadlines and approvals. Commands use protocol version 1, unique action IDs and expected revisions. Economic actions are committed transactionally before acknowledgment, including durable receipts. Movement and pings are accepted in memory and saved periodically. Movement/crop clock snapshots are saved every two seconds. A crash can lose up to two seconds of movement or growth, not an acknowledged purchase. Restarts disconnect all seats until recovered and cancel unfinished purchase requests.
 
 Saves use schema 2. Older schema-1 saves migrate on load and retain their balances and belongings; incomplete historical totals are labeled. Unknown schemas reject loading that town rather than overwrite it. Snapshot projection excludes seat tokens and duplicate-action history.
 
