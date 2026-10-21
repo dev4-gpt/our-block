@@ -447,6 +447,20 @@ function App() {
           {state.code}
         </span>
       </nav>
+          {tab === "Explore" && (
+            <nav className="explore-nav global-explore-nav" aria-label="Explore sections">
+              {["Town", "Activities", "Shop"].map((x) => (
+                <button
+                  key={x}
+                  aria-pressed={section === x}
+                  onClick={() => { setSection(x); if(x !== "Town" && matchMedia("(max-width: 760px)").matches) panel.current?.scrollIntoView({block:"start"}); }}
+                >
+                  {x}
+                </button>
+              ))}
+            </nav>
+          )}
+
       <p className="touch-help">
         <strong>On a phone:</strong> tap the district buttons below the map to
         walk. You can also tap the ground. Swipe the button row for more places.
@@ -546,19 +560,6 @@ function App() {
                   ? `Arrived at ${district.name}`
                   : `Selected: ${district.name} · walk here to interact`}
           </div>
-          {tab === "Explore" && (
-            <nav className="explore-nav" aria-label="Explore sections">
-              {["Town", "Activities", "Shop"].map((x) => (
-                <button
-                  key={x}
-                  aria-pressed={section === x}
-                  onClick={() => setSection(x)}
-                >
-                  {x}
-                </button>
-              ))}
-            </nav>
-          )}
           <div id="decision-inbox" aria-label="Pending decisions">
             {state.pending.map((q: any) => (
               <article className="pending-card" key={q.id}>

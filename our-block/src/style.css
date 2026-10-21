@@ -876,3 +876,7 @@ select:focus-visible {
 button {
   min-height: 44px;
 }
+
+.global-explore-nav { margin:0 24px 10px; z-index:5; }
+aside { scroll-margin-top:70px; }
+@media (max-width:760px) { .global-explore-nav { margin-left:12px; margin-right:12px; } }
