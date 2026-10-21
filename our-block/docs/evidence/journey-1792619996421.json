@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-21T21:59:56.420Z",
+  "scope": "two local protocol clients, isolated SQLite production server",
+  "eveningOnly": true,
+  "sourceRef": "refund-ordering-followup",
+  "seconds": 0,
+  "bytes": 156,
+  "pass": false,
+  "failure": "Invalid join request.",
+  "observations": [],
+  "limitations": [
+    "Not browser UI or physical-device evidence.",
+    "No unfamiliar participants; does not measure learning or usability."
+  ]
+}

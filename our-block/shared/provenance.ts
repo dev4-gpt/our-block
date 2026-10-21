@@ -7,6 +7,7 @@ export type Lot = {
   unitPaid: number;
   payer: string;
   location: string;
+  purchasedRevision?: number;
 };
 type InventoryTown = {
   lots: Lot[];
@@ -17,6 +18,9 @@ export const inventoryAt = (t: InventoryTown, location: string) =>
   location === "storage"
     ? t.storage
     : t.players.find((p) => p.id === location)!.bag;
+// Existing schema-3 IDs contain the original purchase revision, retained across split moves.
+const purchaseOrder = (l: Lot) =>
+  l.purchasedRevision ?? Number(/^lot-(\d+)-/.exec(l.id)?.[1] || 0);
 /** Free/legacy units are consumed first, then refundable units oldest first. Moves preserve payer. */
 export function debitLots(
   t: InventoryTown,
@@ -25,9 +29,9 @@ export function debitLots(
   qty: number,
   destination?: string,
 ) {
-  const lots = t.lots.filter(
-    (l) => l.location === location && l.item === item && l.qty > 0,
-  );
+  const lots = t.lots
+    .filter((l) => l.location === location && l.item === item && l.qty > 0)
+    .sort((a, b) => purchaseOrder(a) - purchaseOrder(b));
   let paid = Math.max(
     0,
     qty -
@@ -60,9 +64,9 @@ export function refundPlan(
 ) {
   let left = qty;
   const result: { lot: Lot; qty: number; amount: number }[] = [];
-  for (const lot of t.lots.filter(
-    (l) => l.location === location && l.offer === offer && l.qty > 0,
-  )) {
+  for (const lot of t.lots
+    .filter((l) => l.location === location && l.offer === offer && l.qty > 0)
+    .sort((a, b) => purchaseOrder(a) - purchaseOrder(b))) {
     const n = Math.min(left, lot.qty);
     if (n) result.push({ lot, qty: n, amount: n * lot.unitPaid });
     left -= n;

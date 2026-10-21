@@ -195,3 +195,24 @@ test("pending, distance, funds and full inventory failures have actionable codes
     (e: any) => e.code === "PENDING_APPROVAL",
   );
 });
+
+test("oldest purchased units remain oldest after leaving and reentering storage", () => {
+  const f = fixture();
+  f.at(0, -12);
+  f.t.players[0].money = 50;
+  f.act("buy", { target: "connector", account: "personal" });
+  f.at(-15, -12);
+  f.act("transfer", { item: "connector", qty: 1, direction: "store" });
+  f.at(0, -12);
+  f.act("buy", { target: "connector" });
+  f.at(-15, -12);
+  f.act("transfer", { item: "connector", qty: 1, direction: "take" });
+  f.at(-15, 12);
+  f.act("accept", { target: "garden" });
+  f.t.evidence = ["leak", "diagnosis", "sizes"];
+  f.act("fit", { item: "connector" });
+  f.at(0, -12);
+  f.act("refund", { target: "connector" });
+  assert.equal(f.t.funds, 300);
+  assert.equal(f.t.players[0].money, 32);
+});

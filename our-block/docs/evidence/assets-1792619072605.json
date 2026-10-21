@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-21T21:44:32.602Z",
+  "origin": "https://our-block-1ooe.onrender.com",
+  "sourceRef": "4776d8d",
+  "bandwidthMbps": 10,
+  "method": "Sequential HTTP consumption capped at 1,250,000 decoded bytes/second; readiness excluded. Decoded-byte shaping is conservative when HTTP compression is used.",
+  "decodedBytes": 795604,
+  "elapsedMs": 708,
+  "assetTransferUnderTenSeconds": true,
+  "files": [
+    {
+      "path": "/",
+      "decodedBytes": 429,
+      "encoding": "br"
+    },
+    {
+      "path": "/assets/index-Bm4nF836.js",
+      "decodedBytes": 272295,
+      "encoding": "br"
+    },
+    {
+      "path": "/assets/index-tsv3CtJ4.css",
+      "decodedBytes": 10928,
+      "encoding": "br"
+    },
+    {
+      "path": "/assets/World-CbKm2Ov-.js",
+      "decodedBytes": 511952,
+      "encoding": "br"
+    }
+  ],
+  "limits": [
+    "Not a browser start-to-interactive result.",
+    "External Google Fonts and font rendering are excluded.",
+    "Not a 10 Mbps physical-phone network result."
+  ]
+}

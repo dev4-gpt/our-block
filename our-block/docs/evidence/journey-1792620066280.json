@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-21T22:01:06.278Z",
+  "scope": "two local protocol clients, isolated SQLite production server",
+  "eveningOnly": true,
+  "sourceRef": "refund-ordering-followup",
+  "seconds": 58,
+  "bytes": 1863443,
+  "pass": true,
+  "observations": [
+    "Evening-only fixture: completed garden/market, 384 credits and one seed/pack seeded; no browser journey claimed.",
+    "Evening completed through repaired furniture, hired lighting, packed food and independent payment verification.",
+    "Refresh-equivalent seat recovery retained three completions and matching funds."
+  ],
+  "limitations": [
+    "Not browser UI or physical-device evidence.",
+    "No unfamiliar participants; does not measure learning or usability."
+  ]
+}

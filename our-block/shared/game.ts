@@ -273,6 +273,7 @@ function purchase(
       item: o.item,
       qty: o.qty,
       unitPaid: o.price / o.qty,
+      purchasedRevision: t.revision,
       payer: account,
       location: p.id,
     });
