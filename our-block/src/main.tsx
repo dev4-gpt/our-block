@@ -34,6 +34,8 @@ function App() {
     [remember, setRemember] = useState(!!localStorage.getItem(storageKey)),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
+    [inviteOpen, setInviteOpen] = useState(false),
+    [inviteStatus, setInviteStatus] = useState(""),
     [selected, setSelected] = useState("garden"),
     [tab, setTab] = useState("Explore"),
     [map, setMap] = useState(false),
@@ -280,6 +282,7 @@ function App() {
     const d = districts.find((x) => x.id === id)!;
     send("move", { x: d.x, z: d.z + 3 });
   };
+  const invitation = `${location.origin}${location.pathname}?town=${state.code}`;
   return (
     <div className="app">
       <header>
@@ -297,19 +300,82 @@ function App() {
           <b>◈ {state.funds}</b>
         </div>
         <button
-          onClick={() => {
-            const invitation = `${location.origin}${location.pathname}?town=${state.code}`;
-            if (navigator.clipboard)
-              void navigator.clipboard
-                .writeText(invitation)
-                .then(() => setNotice("Invitation link copied."))
-                .catch(() => setNotice(invitation));
-            else setNotice(invitation);
-          }}
+          aria-expanded={inviteOpen}
+          aria-controls="town-invitation"
+          onClick={() => setInviteOpen((open) => !open)}
         >
           Invite friends ↗
         </button>
       </header>
+      {inviteOpen && (
+        <section
+          id="town-invitation"
+          className="invitation"
+          aria-label="Invite friends"
+        >
+          <h2>Join this town</h2>
+          <p>
+            Open this link on the other device and enter a different nickname.
+            Or open the game and enter town code <strong>{state.code}</strong>.
+          </p>
+          <label>
+            Invitation link
+            <input
+              aria-label="Invitation link"
+              readOnly
+              value={invitation}
+              onFocus={(e) => e.currentTarget.select()}
+            />
+          </label>
+          <div className="invitation-actions">
+            <button
+              onClick={async () => {
+                try {
+                  if (!navigator.clipboard?.writeText)
+                    throw Error("Clipboard unavailable");
+                  await navigator.clipboard.writeText(invitation);
+                  setInviteStatus(
+                    "Invitation link copied. Paste it on the other device.",
+                  );
+                } catch {
+                  setInviteStatus(
+                    "Copy is unavailable in this browser. Press and hold the link above to copy it, or enter the town code on the other device.",
+                  );
+                }
+              }}
+            >
+              Copy link
+            </button>
+            {typeof navigator.share === "function" && (
+              <button
+                onClick={async () => {
+                  try {
+                    await navigator.share({
+                      title: "Join my OUR BLOCK town",
+                      url: invitation,
+                    });
+                    setInviteStatus(
+                      "Share sheet closed. Your friend can join using the link or town code.",
+                    );
+                  } catch (error) {
+                    setInviteStatus(
+                      error instanceof Error && error.name === "AbortError"
+                        ? "Sharing canceled. You can still copy the link or use the town code."
+                        : "Sharing is unavailable. Copy the link or use the town code instead.",
+                    );
+                  }
+                }}
+              >
+                Share link
+              </button>
+            )}
+            <button onClick={() => setInviteOpen(false)}>
+              Close invitation
+            </button>
+          </div>
+          <p role="status">{inviteStatus}</p>
+        </section>
+      )}
       <nav className="topnav">
         <label className="guidance-select">
           Guidance{" "}

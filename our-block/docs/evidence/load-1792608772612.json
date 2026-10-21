@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-21T18:52:52.612Z",
+  "scope": "local SQLite rehearsal",
+  "origin": "http://127.0.0.1:3015",
+  "budget": 600000000,
+  "totalBytes": 600274492,
+  "aborted": "Traffic budget exceeded.",
+  "reports": [],
+  "limitations": [
+    "Synthetic clients; not physical-device or unfamiliar-player evidence.",
+    "State metric is delay after acknowledgment until matching full snapshot, not synchronized one-way latency.",
+    "No production capacity increase is authorized by this report alone."
+  ]
+}
