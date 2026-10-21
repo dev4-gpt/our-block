@@ -3,6 +3,7 @@ import * as T from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { districts } from "../shared/content.ts";
 import { worldPlan, type WorldBox } from "../shared/world.ts";
+import { visualPosition, smoothingAlpha } from "./motion.ts";
 export default function World({
   state,
   selected,
@@ -18,6 +19,8 @@ export default function World({
   onMove: (x: number, z: number) => void;
   onFail: () => void;
 }) {
+  const received = useRef({ state, at: performance.now() });
+  if (received.current.state !== state) received.current = { state, at: performance.now() };
   const host = useRef<HTMLDivElement>(null),
     latest = useRef({ state, selected, follow, onSelect, onMove });
   latest.current = { state, selected, follow, onSelect, onMove };
@@ -321,9 +324,12 @@ export default function World({
     });
     resize.observe(el);
 
-    let wasFollowing = false;
+    const avatarLabels = new Map<string, HTMLDivElement>();
+    let wasFollowing = false, previousFrame = performance.now();
     function animate() {
       frame = requestAnimationFrame(animate);
+      const now = performance.now(), frameSeconds = Math.min(0.1, (now - previousFrame) / 1000);
+      previousFrame = now;
       const s = latest.current.state;
       const watered =
         !!s?.gardenRepair?.tested ||
@@ -363,9 +369,21 @@ export default function World({
           scene.add(g);
           avatars.set(p.id, g);
           g.position.set(p.x, 0, p.z);
+          const label = document.createElement("div");
+          label.className = "world-label";
+          el.appendChild(label);
+          avatarLabels.set(p.id, label);
         }
-        g.position.lerp(new T.Vector3(p.x, 0, p.z), reduce ? 1 : 0.3);
+        const visual = reduce ? p : visualPosition(p, (now - received.current.at) / 1000);
+        g.position.lerp(new T.Vector3(visual.x, 0, visual.z), reduce ? 1 : smoothingAlpha(frameSeconds));
         g.visible = p.online;
+        const label = avatarLabels.get(p.id)!;
+        label.hidden = !p.online;
+        label.textContent = `${p.name}${p.id === s.you ? " (you)" : ""}`;
+        const v = new T.Vector3(g.position.x, 2.8, g.position.z).project(camera);
+        // Legacy saves may have overlapping residents; stagger their labels.
+        const overlaps = s.players.slice(0, i).filter((other: any) => other.online && Math.hypot(other.x - p.x, other.z - p.z) < 1).length;
+        label.style.transform = `translate(-50%,-50%) translate(${(v.x * 0.5 + 0.5) * el.clientWidth}px,${(-v.y * 0.5 + 0.5) * el.clientHeight - overlaps * 22}px)`;
         if (p.id === s.you) {
           ring.position.x = g.position.x;
           ring.position.z = g.position.z;

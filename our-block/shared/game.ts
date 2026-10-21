@@ -152,7 +152,7 @@ export function join(t: Town, name: string, token: string) {
     id: `p${t.players.length + 1}`,
     name: name.trim().slice(0, 24) || "Neighbor",
     token,
-    x: -15,
+    x: [-15, -13, -17, -11][t.players.length],
     z: -7,
     online: true,
     money: 0,

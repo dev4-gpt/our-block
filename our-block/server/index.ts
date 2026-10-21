@@ -5,6 +5,7 @@ import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { openStore } from "./storage.ts";
 import { TownService } from "./towns.ts";
+import { SimulationClock } from "./simulation-clock.ts";
 import { WebSocketServer, WebSocket } from "ws";
 import {
   GameRuleError,
@@ -274,7 +275,7 @@ wss.on("connection", (ws, req) => {
             movementSequence: result.town.movementSequence,
             duplicate: !!result.duplicate,
           });
-          if (m.type !== "move") broadcast(result.town);
+          broadcast(result.town);
         } catch (e) {
           const message = (e as Error).message;
           const publicError =
@@ -322,15 +323,12 @@ wss.on("connection", (ws, req) => {
       .catch(() => {});
   });
 });
-let last = Date.now(),
-  saveAt = 0,
-  running = false;
+const simulationClock = new SimulationClock(Date.now());
+let saveAt = 0;
 const timer = setInterval(async () => {
-  const now = Date.now(),
-    dt = Math.min(0.5, (now - last) / 1000);
-  last = now;
-  if (running || shuttingDown) return;
-  running = true;
+  if (shuttingDown) return;
+  const now = Date.now(), dt = simulationClock.begin(now);
+  if (dt === undefined) return;
   const flush = now - saveAt >= 2000;
   if (flush) saveAt = now;
   try {
@@ -352,7 +350,7 @@ const timer = setInterval(async () => {
       }),
     );
   } finally {
-    running = false;
+    simulationClock.end();
   }
 }, 100);
 const heartbeat = setInterval(() => {

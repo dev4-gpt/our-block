@@ -107,6 +107,16 @@ test(
       await a.wait((m) => m.type === "result" && m.id === "deposit");
       await a.wait((m) => m.type === "state" && m.state.funds === 308);
 
+      // A second socket sees both the route immediately and intermediate movement,
+      // rather than seeing only the final destination.
+      a.ws.send(JSON.stringify({ v: 1, id: "walk-sync", revision: earned.state.revision,
+        type: "move", x: -5, z: -7 }));
+      await a.wait((m) => m.type === "result" && m.id === "walk-sync");
+      const routeView = await b.wait((m) => m.type === "state" && m.state.players[0].target);
+      assert.equal(routeView.state.players.filter((p: any) => p.online).length, 4);
+      const progress = await b.wait((m) => m.type === "state" && m.state.players[0].x > -14);
+      assert(progress.state.players[0].x < -5);
+
       const fifth = await client({ name: "Fifth", code: seat.code });
       assert.match(
         (await fifth.wait((m) => m.type === "error")).message,
