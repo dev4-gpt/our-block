@@ -10,6 +10,8 @@ import {
   pings,
 } from "../shared/content.ts";
 import "./style.css";
+import { gardenSteps, type Guidance } from "./guidance.ts";
+import { commandId } from "./ids.ts";
 import { TownConnection } from "./connection.ts";
 const World = lazy(() => import("./World.tsx"));
 const storageKey = "our-block-seat";
@@ -19,7 +21,16 @@ function App() {
     [code, setCode] = useState(
       new URLSearchParams(location.search).get("town") || "",
     ),
-    [mode, setMode] = useState("life"),
+    [mode, setMode] = useState("explore"),
+    [guidance, setGuidance] = useState<Guidance>(
+      () =>
+        (["Guided", "Light", "Off"].includes(
+          localStorage.getItem("our-block-guidance") || "",
+        )
+          ? localStorage.getItem("our-block-guidance")
+          : "Guided") as Guidance,
+    ),
+    [remember, setRemember] = useState(!!localStorage.getItem(storageKey)),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [selected, setSelected] = useState("garden"),
@@ -63,9 +74,26 @@ function App() {
             storageKey,
             JSON.stringify({ code: m.code, token: m.token }),
           );
+          if (remember)
+            localStorage.setItem(
+              storageKey,
+              JSON.stringify({ code: m.code, token: m.token }),
+            );
+          else localStorage.removeItem(storageKey);
           history.replaceState({}, "", `?town=${m.code}`);
         }
-        if (m.type === "state") setState(m.state);
+        if (m.type === "state") {
+          setState(m.state);
+          const decision = m.state.decisions
+            ?.filter((d: any) => d.by === m.state.you)
+            .at(-1);
+          if (decision)
+            setNotice((previous) =>
+              previous.startsWith("A teammate must approve")
+                ? decision.text
+                : previous,
+            );
+        }
         if (m.type === "error") {
           setError(m.message);
           setConnecting(false);
@@ -93,13 +121,15 @@ function App() {
     client.start(recover || { name, code, mode });
   }
   useEffect(() => {
-    const saved = sessionStorage.getItem(storageKey);
+    const saved =
+      sessionStorage.getItem(storageKey) || localStorage.getItem(storageKey);
     if (saved) {
       try {
         const seat = JSON.parse(saved);
         if (!code || code === seat.code) connect(seat);
       } catch {
         sessionStorage.removeItem(storageKey);
+        localStorage.removeItem(storageKey);
       }
     }
     return () => transport.current?.stop();
@@ -110,7 +140,7 @@ function App() {
       !transport.current?.send({
         v: 1,
         type,
-        id: crypto.randomUUID(),
+        id: commandId(),
         revision: current.current.revision,
         ...extra,
       })
@@ -195,6 +225,19 @@ function App() {
               <option value="explore">Untimed exploration</option>
             </select>
           </label>
+          <p className="mode-help">
+            Untimed towns have no day deadline. In Life mode, a day lasts 20
+            active minutes and pauses when everyone leaves. Starter housing is
+            secure; optional facilities can have inspectable bills.
+          </p>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+            />{" "}
+            Remember my seat on this device. Leave off on shared devices.
+          </label>
           <button
             className="primary"
             disabled={connecting}
@@ -214,10 +257,16 @@ function App() {
     );
   const district = districts.find((x) => x.id === selected)!;
   const near = Math.hypot(me.x - district.x, me.z - district.z) <= 7;
-  const total = (key: string) =>
+  const categoryTotal = (account: string, category: string) =>
+    state.totals?.[account]?.[category] ??
     state.ledger
-      .filter((x: any) => x.account === key)
-      .reduce((s: number, x: any) => s + x.amount, 0);
+      .filter((x: any) => x.account === account && x.category === category)
+      .reduce((n: number, x: any) => n + x.amount, 0);
+  const total = (key: string) =>
+    ["income", "expense", "transfer"].reduce(
+      (n, c) => n + categoryTotal(key, c),
+      0,
+    );
   const go = (id: string) => {
     setSelected(id);
     const d = districts.find((x) => x.id === id)!;
@@ -241,16 +290,34 @@ function App() {
         </div>
         <button
           onClick={() => {
-            navigator.clipboard
-              ?.writeText(location.href)
-              .then(() => setNotice("Invitation link copied."))
-              .catch(() => setNotice(location.href));
+            const invitation = `${location.origin}${location.pathname}?town=${state.code}`;
+            if (navigator.clipboard)
+              void navigator.clipboard
+                .writeText(invitation)
+                .then(() => setNotice("Invitation link copied."))
+                .catch(() => setNotice(invitation));
+            else setNotice(invitation);
           }}
         >
           Invite friends ↗
         </button>
       </header>
       <nav className="topnav">
+        <label className="guidance-select">
+          Guidance{" "}
+          <select
+            aria-label="Personal guidance"
+            value={guidance}
+            onChange={(e) => {
+              setGuidance(e.target.value as Guidance);
+              localStorage.setItem("our-block-guidance", e.target.value);
+            }}
+          >
+            {["Guided", "Light", "Off"].map((v) => (
+              <option key={v}>{v}</option>
+            ))}
+          </select>
+        </label>
         {["Explore", "Projects", "Backpack", "Ledger"].map((x) => (
           <button
             className={tab === x ? "active" : ""}
@@ -260,6 +327,24 @@ function App() {
             {x}
           </button>
         ))}
+        <button
+          onClick={() => {
+            if (
+              confirm(
+                "Forget this device’s saved seat? The town remains saved. You may lose access to this seat without another private recovery copy.",
+              )
+            ) {
+              sessionStorage.removeItem(storageKey);
+              localStorage.removeItem(storageKey);
+              transport.current?.stop();
+              setState(null);
+              setCode("");
+              history.replaceState({}, "", location.pathname);
+            }
+          }}
+        >
+          Forget this device
+        </button>
         <span className="residents">
           {state.players.filter((p: any) => p.online).length}/4 neighbors ·{" "}
           {state.code}
@@ -341,6 +426,109 @@ function App() {
           </div>
         </section>
         <aside>
+          {state.availability && state.availability !== "ready" && (
+            <div role="status" className="notice">
+              {state.availability === "read-only"
+                ? "Town preserved: storage is near its allowance, so play is paused."
+                : state.availability === "limited"
+                  ? "New contracts are paused while storage is near its allowance."
+                  : "Storage is approaching its allowance. Your progress remains saved."}
+            </div>
+          )}
+          {guidance !== "Off" &&
+            state.contracts.garden?.status !== "complete" && (
+              <article className="journey">
+                <span className="eyebrow">FIRST PROJECT · OPEN THE GARDEN</span>
+                <h2>Bring water back to the block</h2>
+                <p>
+                  The beds are dry. Investigate the fault, agree on a repair and
+                  test whether it works.
+                </p>
+                {guidance === "Guided" && (
+                  <>
+                    <p>
+                      Split the investigation: one neighbor can inspect the
+                      garden and Workshop while another compares Market offers.
+                      Meet to exchange supplies. Both investigations matter;
+                      approving a purchase is only one step.
+                    </p>
+                    <ol>
+                      {gardenSteps(state).map((step) => (
+                        <li
+                          key={step.label}
+                          className={step.done ? "done" : ""}
+                        >
+                          {step.done ? "✓ " : "○ "}
+                          {step.label}
+                        </li>
+                      ))}
+                    </ol>
+                    <small>
+                      Tap a district to walk. Use Explore for local
+                      interactions, Projects for contracts, and Backpack for
+                      evidence and supplies. All guidance settings show the same
+                      costs and evidence.
+                    </small>
+                  </>
+                )}
+                {!state.contracts.garden && (
+                  <div className="actions">
+                    <button onClick={() => go("garden")}>Walk to garden</button>
+                    <button
+                      disabled={Math.hypot(me.x + 15, me.z - 12) > 7}
+                      onClick={() => send("accept", { target: "garden" })}
+                    >
+                      Agree to garden project
+                    </button>
+                  </div>
+                )}
+              </article>
+            )}
+          {guidance !== "Off" &&
+            state.contracts.garden?.status === "complete" &&
+            state.contracts.evening?.status !== "complete" && (
+              <article className="journey">
+                <h3>
+                  {state.contracts.market?.status === "complete"
+                    ? "The block is ready for an evening together"
+                    : "The garden is growing. Bring it to market."}
+                </h3>
+                <p>
+                  Review the next contract, plan supplies and compare the cost
+                  with the expected reward.
+                </p>
+                <button
+                  onClick={() => {
+                    go(
+                      state.contracts.market?.status === "complete"
+                        ? "hall"
+                        : "market",
+                    );
+                    setTab("Projects");
+                  }}
+                >
+                  Plan the next project
+                </button>
+              </article>
+            )}
+          {Object.keys(state.contributions || {}).length > 0 && (
+            <article>
+              <h3>Our contributions</h3>
+              {Object.entries(state.contributions).map(([id, text]) => (
+                <p key={id}>
+                  <strong>
+                    {state.players.find((p: any) => p.id === id)?.name}:
+                  </strong>{" "}
+                  {String(text)}
+                </p>
+              ))}
+            </article>
+          )}
+          {state.decisions?.slice(-2).map((d: any) => (
+            <p className="notice" role="status" key={d.id}>
+              {d.text}
+            </p>
+          ))}
           {connectionStatus && (
             <div className="notice" role="status">
               {connectionStatus}
@@ -400,6 +588,12 @@ function App() {
               </button>
             </div>
           )}
+          {tab === "Ledger" && !state.totalsComplete && (
+            <p className="notice">
+              Historical totals cover only retained entries from the older save.
+              New transactions are counted cumulatively from this upgrade.
+            </p>
+          )}
           {state.review && (
             <article className="review">
               <h3>A day well spent</h3>
@@ -415,12 +609,34 @@ function App() {
             <article key={q.id}>
               <span className="eyebrow">TEAM DECISION</span>
               <h3>
-                {q.target || "Service bill"} · {q.cost} credits
+                {offers.find((o) => o.id === q.target)?.name ||
+                  upgrades.find((u) => u.id === q.target)?.name ||
+                  "Service bill"}{" "}
+                · {q.cost} credits
               </h3>
               <p>
                 Requested by{" "}
                 {state.players.find((p: any) => p.id === q.by)?.name}
               </p>
+              <p>
+                Quantity: {offers.find((o) => o.id === q.target)?.qty || 1} ·
+                Total: {q.cost} credits · Shared funds after approval:{" "}
+                {state.funds - q.cost}
+              </p>
+              <p>
+                {offers.find((o) => o.id === q.target)?.detail ||
+                  upgrades.find((u) => u.id === q.target)?.detail ||
+                  "Pays the outstanding optional service bill."}
+              </p>
+              <small>
+                No money moves until approval. Purchases are not automatically
+                retried after a connection failure.
+              </small>
+              {q.by !== me.id && (
+                <button onClick={() => send("decline", { target: q.id })}>
+                  Decline · no spending
+                </button>
+              )}
               {q.by !== me.id && (
                 <button
                   className="primary"
@@ -429,11 +645,61 @@ function App() {
                   Approve shared purchase
                 </button>
               )}
-              <button onClick={() => send("cancel", { target: q.id })}>
-                Cancel request
-              </button>
+              {q.by === me.id && (
+                <button onClick={() => send("cancel", { target: q.id })}>
+                  Cancel request
+                </button>
+              )}
             </article>
           ))}
+          {selected === "garden" &&
+            state.contracts.garden?.status === "active" && (
+              <article className="repair">
+                <h3>
+                  {state.gardenRepair?.tested
+                    ? "Water reaches the beds"
+                    : state.gardenRepair
+                      ? "Fitting installed · test required"
+                      : "Dry beds · connection needs repair"}
+                </h3>
+                <p>
+                  Choose from the parts you carry using the evidence you
+                  collected. An unused incompatible purchase can be returned.
+                </p>
+                {!state.gardenRepair &&
+                  Object.entries(me.bag)
+                    .filter(
+                      ([id, n]) =>
+                        ["connector", "hose", "wrong"].includes(id) &&
+                        Number(n) > 0,
+                    )
+                    .map(([id]) => (
+                      <button
+                        disabled={Math.hypot(me.x + 15, me.z - 12) > 7}
+                        key={id}
+                        onClick={() => send("fit", { item: id })}
+                      >
+                        Fit {items[id] || id}
+                      </button>
+                    ))}
+                {state.gardenRepair && !state.gardenRepair.tested && (
+                  <button
+                    disabled={Math.hypot(me.x + 15, me.z - 12) > 7}
+                    onClick={() => send("test")}
+                  >
+                    Test water connection
+                  </button>
+                )}
+                {state.gardenRepair?.tested && (
+                  <button
+                    disabled={Math.hypot(me.x + 15, me.z - 12) > 7}
+                    onClick={() => send("complete", { target: "garden" })}
+                  >
+                    Complete repair · reconcile reward
+                  </button>
+                )}
+              </article>
+            )}
           {tab === "Explore" && (
             <>
               {!near && (
@@ -590,6 +856,8 @@ function App() {
                   <p>{pr.description}</p>
                   <p className="requirements">
                     {pr.requirements}
+                    {pr.id === "garden" &&
+                      " Then fit your chosen part and test the connection at the Garden."}
                     {c?.variant === 1 && (
                       <strong>
                         {" "}
@@ -732,35 +1000,14 @@ function App() {
                 <h3>Cooperative balance · {state.funds}</h3>
                 <p>
                   Operating result:{" "}
-                  {state.ledger
-                    .filter(
-                      (x: any) =>
-                        x.account === "shared" &&
-                        ["income", "expense"].includes(x.category),
-                    )
-                    .reduce((s: number, x: any) => s + x.amount, 0)}{" "}
+                  {categoryTotal("shared", "income") +
+                    categoryTotal("shared", "expense")}{" "}
                   · Net cash change: {total("shared")} · Your earnings balance:{" "}
                   {me.money}
                 </p>
                 <p>
-                  Revenue:{" "}
-                  {state.ledger
-                    .filter(
-                      (x: any) =>
-                        x.amount > 0 &&
-                        x.category === "income" &&
-                        x.account === "shared",
-                    )
-                    .reduce((a: number, x: any) => a + x.amount, 0)}{" "}
-                  · Spending:{" "}
-                  {
-                    -state.ledger
-                      .filter(
-                        (x: any) =>
-                          x.category === "expense" && x.account === "shared",
-                      )
-                      .reduce((a: number, x: any) => a + x.amount, 0)
-                  }
+                  Revenue: {categoryTotal("shared", "income")} · Spending:{" "}
+                  {-categoryTotal("shared", "expense")}
                 </p>
                 <p>
                   Kitchen bill outstanding: {state.bill}. Tomorrow:{" "}

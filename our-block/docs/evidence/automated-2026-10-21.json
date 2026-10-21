@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-21T18:00:17.967823+00:00",
+  "command": "ALLOW_LOCAL_PG_TEST=1 TEST_DATABASE_URL=<disposable localhost> NETWORK_TEST=1 npm test",
+  "passed": 49,
+  "failed": 0,
+  "skipped": 0,
+  "backends": [
+    "SQLite",
+    "disposable PostgreSQL 17"
+  ],
+  "build": "npm run build passed",
+  "restoration": "Private local and pre-upgrade Neon backups restored to isolated SQLite; balances, contracts, possessions, recovery tokens and receipt counts verified.",
+  "limits": [
+    "No real phone FPS result yet",
+    "No unfamiliar-player evidence",
+    "No public capacity certification",
+    "Unity source changes have not been cloud-compiled for this candidate"
+  ]
+}

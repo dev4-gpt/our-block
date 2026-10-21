@@ -97,3 +97,15 @@ test("recovery errors and seat replacement stop retries", async () => {
   assert.equal(s.jobs.length, 0);
   s.client.stop();
 });
+test("90-second wake budget ends retries and exposes manual reconnect", async () => {
+  const s = setup();
+  s.client.start({ code: "ABC", token: "seat" });
+  await turn();
+  const deadline = s.jobs.find((x) => x.ms === 90000);
+  assert(deadline);
+  deadline.fn();
+  assert.match(s.states.at(-1)!, /90 seconds/);
+  assert.equal(s.sockets[0].readyState, 3);
+  assert(!s.client.send({ id: "late", type: "buy" }));
+  s.client.stop();
+});

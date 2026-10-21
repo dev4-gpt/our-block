@@ -658,3 +658,65 @@ label small {
     scroll-behavior: auto !important;
   }
 }
+.guidance-select {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+}
+.guidance-select select {
+  width: auto;
+  padding: 0.4rem;
+}
+.journey {
+  border-left: 4px solid #486957;
+  background: #f4f3e9;
+}
+.journey ol {
+  padding-left: 1.2rem;
+  line-height: 1.65;
+}
+.journey .done {
+  color: #355843;
+}
+.mode-help {
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.check {
+  display: flex !important;
+  gap: 0.6rem;
+  align-items: center;
+}
+.check input {
+  width: auto;
+}
+.repair button {
+  margin: 0.3rem;
+}
+.topnav {
+  flex-wrap: wrap;
+}
+.topnav button {
+  min-height: 40px;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid #315e8c;
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .topnav {
+    gap: 0.35rem;
+  }
+  .guidance-select {
+    width: 100%;
+  }
+  .play aside {
+    min-width: 0;
+  }
+  .journey h2 {
+    font-size: 1.3rem;
+  }
+}

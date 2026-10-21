@@ -31,7 +31,13 @@ export type Ledger = {
   category?: "income" | "expense" | "transfer" | "note";
 };
 export type Town = {
-  schema: 1;
+  schema: 2;
+  movementSequence: number;
+  totals: Record<string, { income: number; expense: number; transfer: number }>;
+  totalsComplete: boolean;
+  gardenRepair?: { part: string; by: string; tested: boolean };
+  contributions: Record<string, string>;
+  decisions: { id: string; by: string; text: string; status: string }[];
   simTime: number;
   crops: { ready: number; by: string }[];
   code: string;
@@ -89,7 +95,12 @@ export function createTown(
   mode: "life" | "explore" = "life",
 ): Town {
   return {
-    schema: 1,
+    schema: 2,
+    movementSequence: 0,
+    totals: {},
+    totalsComplete: true,
+    contributions: {},
+    decisions: [],
     simTime: 0,
     crops: [],
     code,
@@ -170,6 +181,8 @@ function record(
       ? "expense"
       : "note",
 ) {
+  const total = (t.totals[account] ??= { income: 0, expense: 0, transfer: 0 });
+  if (category !== "note") total[category] += amount;
   t.ledger.push({ day: t.day, text, amount, account, category });
   t.ledger = t.ledger.slice(-200);
 }
@@ -224,6 +237,14 @@ export function disconnect(t: Town, id: string) {
     p.online = false;
     p.target = undefined;
     p.path = [];
+    for (const q of t.pending.filter((x) => x.by === id))
+      t.decisions.push({
+        id: q.id,
+        by: id,
+        status: "canceled",
+        text: "Request canceled because its requester disconnected. No credits spent.",
+      });
+    t.decisions = t.decisions.slice(-12);
     t.pending = t.pending.filter((x) => x.by !== id);
     t.revision++;
   }
@@ -241,7 +262,10 @@ export function apply(
   if (original.processed.includes(id + ":" + c.id))
     return { town: original, message: "Already applied.", duplicate: true };
   need(
-    c.revision === original.revision,
+    c.type === "move" ||
+      c.type === "ping" ||
+      c.type === "ack" ||
+      c.revision === original.revision,
     "STALE: The town changed. Review the latest view and try again.",
   );
   const t = structuredClone(original),
@@ -293,7 +317,49 @@ export function apply(
       }
   } else {
     need(!t.review, "Review the day’s ledger and start the next day first.");
-    if (c.type === "activity") {
+    if (c.type === "fit" || c.type === "test") {
+      near(p, "garden");
+      need(
+        t.contracts.garden?.status === "active",
+        "Accept the garden project first.",
+      );
+      if (c.type === "fit") {
+        need(
+          !t.gardenRepair,
+          "The fitting is installed. Test the water connection.",
+        );
+        need(
+          ["leak", "diagnosis", "sizes"].every((x) => t.evidence.includes(x)),
+          "Inspect the connection, measure at Workshop and examine the Market specifications first.",
+        );
+        need(
+          c.item === "connector" || c.item === "hose",
+          "Choose a compatible carried repair part. Unused incompatible parts can be returned at Market.",
+        );
+        consume(p.bag, { [c.item]: 1 });
+        if (t.contracts.garden.variant === 1) consume(p.bag, { filter: 1 });
+        t.gardenRepair = { part: c.item, by: p.id, tested: false };
+        message =
+          "Part fitted. The connection still needs a water test before delivery.";
+      } else {
+        need(
+          t.gardenRepair,
+          "Fit a repair part before testing the connection.",
+        );
+        need(
+          !t.gardenRepair.tested,
+          "Water already reaches the beds. Complete the project to reconcile the reward.",
+        );
+        t.gardenRepair.tested = true;
+        message =
+          "Water test passed: the beds receive water and the connection holds. Complete the project to receive its reward.";
+      }
+      t.contributions[p.id] =
+        c.type === "fit"
+          ? "Fitted the garden connection"
+          : "Tested the water connection";
+      record(t, `${p.name}: ${message}`);
+    } else if (c.type === "activity") {
       const a = activities.find((x) => x.id === target);
       need(a, "Activity not found.");
       near(p, a.district);
@@ -334,7 +400,10 @@ export function apply(
         count(p.bag) <= limit(t),
         "Your backpack is full. Store supplies first.",
       );
-      if (a.evidence) grant(t, p, a.evidence);
+      if (a.evidence) {
+        grant(t, p, a.evidence);
+        t.contributions[p.id] = a.name;
+      }
       if (a.onceDay) p.daily.push(a.id);
       let pay = a.pay || 0;
       if (a.id === "sell" && t.upgrades.includes("stall")) pay += 5;
@@ -382,9 +451,20 @@ export function apply(
           personal ? p.id : "shared",
         );
       }
-    } else if (c.type === "approve" || c.type === "cancel") {
+    } else if (
+      c.type === "approve" ||
+      c.type === "cancel" ||
+      c.type === "decline"
+    ) {
       const q = t.pending.find((x) => x.id === target);
       need(q, "Purchase is no longer pending.");
+      if (c.type === "cancel")
+        need(
+          q.by === p.id,
+          "Only the requester can cancel; teammates can decline.",
+        );
+      if (c.type === "decline")
+        need(q.by !== p.id, "A different teammate must decline.");
       if (c.type === "approve") {
         need(q.by !== p.id, "A different teammate must approve.");
         const buyer = t.players.find((x) => x.id === q.by);
@@ -398,6 +478,16 @@ export function apply(
         t.funds -= q.cost;
         record(t, `${p.name} approved ${q.target || "bill"}`, -q.cost);
       }
+      const status =
+        c.type === "approve"
+          ? "approved"
+          : c.type === "decline"
+            ? "declined"
+            : "canceled";
+      message = `${q.target || "Service bill"}: ${status} by ${p.name}. ${status === "approved" ? `${q.cost} credits committed.` : "No credits spent."}`;
+      t.decisions.push({ id: q.id, by: q.by, status, text: message });
+      t.decisions = t.decisions.slice(-12);
+      record(t, message);
       t.pending = t.pending.filter((x) => x.id !== target);
     } else if (c.type === "transfer") {
       near(p, "home");
@@ -433,6 +523,7 @@ export function apply(
       );
       consume(p.bag, { [c.item]: c.qty! });
       add(other.bag, c.item, c.qty!);
+      t.contributions[p.id] = "Shared repair or project supplies";
       need(count(other.bag) <= limit(t), "Their backpack is full.");
     } else if (c.type === "deposit") {
       near(p, "home");
@@ -471,6 +562,10 @@ export function apply(
         variant:
           (t.contracts[target] ? t.contracts[target].variant + 1 : 0) % 2,
       };
+      if (target === "garden") {
+        delete t.gardenRepair;
+        t.contributions = {};
+      }
       record(
         t,
         `${pr.name} accepted: due day ${t.day + pr.deadline}. Cancel without fee; keep supplies.`,
@@ -490,13 +585,10 @@ export function apply(
       need(contract?.status === "active", "Accept this project first.");
       need(contract.due >= t.day, "Renegotiate this expired project.");
       if (target === "garden") {
-        if (contract.variant === 1) consume(p.bag, { filter: 1 });
         need(
-          ["leak", "diagnosis", "sizes"].every((x) => t.evidence.includes(x)),
-          "Inspect the garden, measure at the workshop, and compare at the market.",
+          t.gardenRepair?.tested,
+          "Fit a compatible part and test the water at the Garden before completing the project.",
         );
-        if (p.bag.connector) consume(p.bag, { connector: 1 });
-        else consume(p.bag, { hose: 1 });
       }
       if (target === "market") {
         need(t.evidence.includes("receipt"), "Check the delivery board first.");
@@ -549,12 +641,24 @@ export function apply(
   }
   t.processed.push(id + ":" + c.id);
   t.processed = t.processed.slice(-1000);
-  t.revision++;
+  if (["move", "ping", "ack"].includes(c.type)) t.movementSequence++;
+  else t.revision++;
   return { town: t, message };
 }
 export function tick(t: Town, dt: number) {
   if (!t.players.some((p) => p.online) || t.review) return;
+  const oldTime = t.simTime,
+    oldSeconds = t.seconds;
+  const moving = t.players.some((p) => p.online && p.target);
   t.simTime += dt;
+  // Full protocol-v1 states are needed for visible changes, not every idle clock tick.
+  if (
+    moving ||
+    (t.mode === "life" &&
+      Math.floor(oldSeconds) !== Math.floor(oldSeconds + dt)) ||
+    (t.crops.length > 0 && Math.floor(oldTime) !== Math.floor(t.simTime))
+  )
+    t.movementSequence++;
   for (const p of t.players) {
     if (!p.online) continue;
     let budget = dt * 5;
@@ -596,10 +700,34 @@ export function snapshot(t: Town, id: string) {
 }
 export function restore(raw: any): Town {
   need(
-    raw?.schema === 1,
+    (raw?.schema === 1 || raw?.schema === 2) &&
+      Array.isArray(raw.players) &&
+      Array.isArray(raw.ledger) &&
+      !!raw.contracts &&
+      typeof raw.code === "string",
     "Unsupported save schema; preserve this database and upgrade the server.",
   );
   const t = raw as Town;
+  const migrated = raw.schema === 1;
+  t.schema = 2;
+  t.movementSequence ??= 0;
+  t.contributions ??= {};
+  t.decisions ??= [];
+  if (!t.totals) {
+    t.totals = {};
+    for (const row of t.ledger || []) {
+      const total = (t.totals[row.account] ??= {
+        income: 0,
+        expense: 0,
+        transfer: 0,
+      });
+      if (row.category && row.category !== "note")
+        total[row.category] += row.amount;
+    }
+    t.totalsComplete = false;
+  }
+  if (migrated && t.contracts.garden?.status === "complete")
+    t.gardenRepair ??= { part: "legacy", by: "", tested: true };
   t.simTime ??= 0;
   t.crops ??= [];
   for (const p of t.players) {

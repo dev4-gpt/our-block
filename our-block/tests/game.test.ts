@@ -100,6 +100,8 @@ for (const alternative of [false, true])
     s.act("activity", { target: "compare" });
     s.act("buy", { target: alternative ? "hose" : "connector" });
     s.at("garden");
+    s.act("fit", { item: alternative ? "hose" : "connector" });
+    s.act("test");
     s.act("complete", { target: "garden" });
     assert.equal(s.t.contracts.garden.status, "complete");
     s.at("market");
@@ -265,6 +267,10 @@ for (const id of ["garden", "market", "evening"])
         : id === "market"
           ? { parcel: 2 }
           : { repair: 2, parcel: 1, lamp: 1 };
+    if (id === "garden") {
+      s.act("fit", { item: "connector" });
+      s.act("test");
+    }
     s.act("complete", { target: id });
     assert.equal(s.t.contracts[id].status, "complete");
   });
@@ -294,4 +300,48 @@ test("delivery payment also requires teammate approval", () => {
   assert.equal(s.t.funds, 300);
   s.act("approve", { target: s.t.pending[0].id }, "p2");
   assert.equal(s.t.funds, 275);
+});
+for (const project of ["garden", "market", "evening"])
+  test(`${project}: an expired commitment can be canceled, supplies retained, and work planned again`, () => {
+    const s = setup();
+    s.at(project === "evening" ? "hall" : project);
+    s.act("accept", { target: project });
+    s.t.players[0].bag = { filter: 1 };
+    s.t.day = s.t.contracts[project].due;
+    s.t.review = true;
+    s.act("next");
+    assert.equal(s.t.contracts[project].status, "expired");
+    s.act("renegotiate", { target: project });
+    assert.equal(s.t.contracts[project].status, "active");
+    s.act("abandon", { target: project });
+    assert.equal(s.t.players[0].bag.filter, 1);
+    s.act("accept", { target: project });
+    assert.equal(s.t.contracts[project].status, "active");
+  });
+test("a declined request spends nothing and requester alone can cancel", () => {
+  const s = setup(2);
+  s.at("market");
+  s.act("buy", { target: "connector" });
+  const id = s.t.pending[0].id;
+  assert.throws(() => s.act("cancel", { target: id }, "p2"), /requester/);
+  s.act("decline", { target: id }, "p2");
+  assert.equal(s.t.funds, 300);
+  assert.equal(s.t.pending.length, 0);
+  assert.equal(s.t.decisions.at(-1)?.status, "declined");
+});
+test("fitting consumes the carried part, a test is required, incompatible fitting leaves resources intact", () => {
+  const s = setup();
+  s.at("garden");
+  s.act("accept", { target: "garden" });
+  s.t.evidence = ["leak", "diagnosis", "sizes"];
+  s.t.players[0].bag = { wrong: 1, connector: 1 };
+  const before = structuredClone(s.t);
+  assert.throws(() => s.act("fit", { item: "wrong" }));
+  assert.deepEqual(s.t, before);
+  s.act("fit", { item: "connector" });
+  assert.equal(s.t.players[0].bag.connector || 0, 0);
+  assert.throws(() => s.act("complete", { target: "garden" }), /test/i);
+  s.act("test");
+  s.act("complete", { target: "garden" });
+  assert.equal(s.t.funds, 355);
 });

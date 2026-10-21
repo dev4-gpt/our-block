@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-21T17:25:54.244Z",
+  "scope": "local SQLite rehearsal",
+  "origin": "http://127.0.0.1:3014",
+  "budget": 1000000000,
+  "totalBytes": 83429803,
+  "aborted": "Unexpected rule/storage error: STALE: The town changed. Review the latest view and try again.",
+  "reports": [
+    {
+      "clients": 4,
+      "towns": 1,
+      "seconds": 300,
+      "actions": 467,
+      "ackP95ms": 6,
+      "postAckStateP95ms": 0,
+      "unexpectedErrors": 0,
+      "bytes": 77820305,
+      "peakServerRssMiB": 95,
+      "pass": true
+    }
+  ],
+  "limitations": [
+    "Synthetic clients; not physical-device or unfamiliar-player evidence.",
+    "State metric is delay after acknowledgment until matching full snapshot, not synchronized one-way latency.",
+    "No production capacity increase is authorized by this report alone."
+  ]
+}

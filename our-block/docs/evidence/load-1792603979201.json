@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-21T17:32:59.201Z",
+  "scope": "local SQLite rehearsal",
+  "origin": "http://127.0.0.1:3014",
+  "budget": 1000000000,
+  "totalBytes": 149105342,
+  "reports": [
+    {
+      "clients": 4,
+      "towns": 1,
+      "seconds": 60,
+      "actions": 97,
+      "ackP95ms": 3,
+      "postAckStateP95ms": 0,
+      "unexpectedErrors": 0,
+      "bytes": 2533372,
+      "peakServerRssMiB": 77,
+      "pass": true
+    },
+    {
+      "clients": 20,
+      "towns": 5,
+      "seconds": 60,
+      "actions": 481,
+      "ackP95ms": 7,
+      "postAckStateP95ms": 0,
+      "unexpectedErrors": 0,
+      "bytes": 14294874,
+      "peakServerRssMiB": 67,
+      "pass": true
+    },
+    {
+      "clients": 50,
+      "towns": 13,
+      "seconds": 60,
+      "actions": 1203,
+      "ackP95ms": 7,
+      "postAckStateP95ms": 0,
+      "unexpectedErrors": 0,
+      "bytes": 40345488,
+      "peakServerRssMiB": 84,
+      "pass": true
+    },
+    {
+      "clients": 100,
+      "towns": 25,
+      "seconds": 60,
+      "actions": 2375,
+      "ackP95ms": 28,
+      "postAckStateP95ms": 0,
+      "unexpectedErrors": 0,
+      "bytes": 90936430,
+      "peakServerRssMiB": 93,
+      "pass": true
+    }
+  ],
+  "limitations": [
+    "Synthetic clients; not physical-device or unfamiliar-player evidence.",
+    "State metric is delay after acknowledgment until matching full snapshot, not synchronized one-way latency.",
+    "No production capacity increase is authorized by this report alone."
+  ]
+}

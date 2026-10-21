@@ -4,3 +4,4 @@ Uses React (MIT), Three.js (MIT), Vite (MIT), ws (MIT), TypeScript (Apache-2.0).
 Fonts: DM Sans and Manrope, SIL Open Font License, served by Google Fonts with local sans-serif fallback.
 The neighboring LAST LIGHT project retains its own Autopolis attribution. No WorldClaw assets are included.
 DispatchIQ's deterministic-validation concept and Veloce Forge's event-recording concept informed the design; no code from those projects is included here.
+Submission cover draft: original AI-assisted promotional artwork generated with OpenAI's image tool, October 21, 2026. It is separate from in-game procedural assets and is not a gameplay screenshot.

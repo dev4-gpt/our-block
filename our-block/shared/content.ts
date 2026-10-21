@@ -297,12 +297,11 @@ export const offers = [
   {
     id: "connector",
     district: "market",
-    name: "Tested connector · 20 mm",
+    name: "Connector · 20 mm",
     price: 18,
     item: "connector",
     qty: 1,
-    detail:
-      "Nia’s stall · compatible with the garden fitting · full refund unused",
+    detail: "Nia’s stall · one fitting for 20 mm sockets · full refund unused",
   },
   {
     id: "wrong",
@@ -311,7 +310,7 @@ export const offers = [
     price: 9,
     item: "wrong",
     qty: 1,
-    detail: "Different diameter · inspect before choosing · full refund unused",
+    detail: "One fitting for 25 mm sockets · full refund unused",
   },
   {
     id: "hose",
@@ -320,7 +319,7 @@ export const offers = [
     price: 36,
     item: "hose",
     qty: 1,
-    detail: "Includes a compatible fitting · higher cost, same working outcome",
+    detail: "One complete hose with a 20 mm fitting · full refund unused",
   },
   {
     id: "seed",

@@ -12,7 +12,8 @@
     "format": "prettier --write \"{shared,server,src,tests,scripts}/**/*.{ts,tsx,css}\"",
     "migrate:cloud": "node --import tsx scripts/migrate-storage.ts",
     "backup": "node --import tsx scripts/backup-storage.ts",
-    "restore": "node --import tsx scripts/restore-storage.ts"
+    "restore": "node --import tsx scripts/restore-storage.ts",
+    "test:load": "node --import tsx scripts/load-test.ts"
   },
   "dependencies": {
     "pg": "^8.23.1",

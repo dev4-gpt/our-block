@@ -85,3 +85,11 @@ Unity account verified October 20, 2026: DevOps Free tier; usage 0/100 Mac minut
 Postgres records carry an internal storage_version separate from the public protocol revision. Version-checked writes reject stale overlapping servers instead of overwriting newer saves. This guards accidental deploy overlap; it does not implement multi-replica simulation.
 
 Local verification: 33 tests passed with real Postgres, including four WebSocket clients and process restart. SQLite-specific checks also passed. Browser refresh and automatic seat recovery after a controlled restart were observed.
+
+## Schema-2 release candidate (October 21)
+
+Use the release checklist in `RELEASE_PLAN.md`. Public admission defaults to four total residents; do not raise `MAX_PLAYERS` from local load results. Optional `STORAGE_BUDGET_BYTES` is an application safety budget (default 100 MiB), not an automatic reading of provider quota. Inspect Neon and Render dashboards first. Full protocol-v1 states remain the transport; idle broadcasts were removed after profiling, with movement updates at 10 Hz and visible clock/crop updates at 1 Hz.
+
+Create private consistent exports using `npm run backup -- /private/backup-directory --daily` (one per UTC day, seven retained) or omit `--daily` for release backups (three retained). Rotation only touches this command's dated `.backup.json` namespace. Scheduling/off-Mac private storage remains an operational setup gate; a folder on ephemeral Render storage is **not** durable backup storage. Format 2 includes economic receipts alongside towns. Restore into an empty disposable database first with `npm run restore -- /private/backup.backup.json`; conflicts refuse the entire import. Keep the pre-upgrade database snapshot and matching old code together for rollback. Never roll back only code after accepting new-schema transactions.
+
+October 21 local candidate checks: both storage backends and real socket restart recovery passed; the local private backup was restored into an isolated database and its town/receipt counts matched. The candidate is not deployed until a corresponding private Neon backup has succeeded and provider readiness has been checked. An existing successful Unity binary predates this candidate's explicit fit/test actions; keep it experimental and rebuild only within the verified free allowance after browser gates pass.

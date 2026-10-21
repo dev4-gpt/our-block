@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-21T17:20:07.670Z",
+  "scope": "local SQLite rehearsal",
+  "origin": "http://127.0.0.1:3014",
+  "budget": 1000000000,
+  "totalBytes": 2654457,
+  "reports": [
+    {
+      "clients": 4,
+      "towns": 1,
+      "seconds": 20,
+      "actions": 37,
+      "ackP95ms": 15,
+      "postAckStateP95ms": 0,
+      "unexpectedErrors": 0,
+      "bytes": 2621115,
+      "peakServerRssMiB": 77,
+      "pass": true
+    }
+  ],
+  "limitations": [
+    "Synthetic clients; not physical-device or unfamiliar-player evidence.",
+    "State metric is delay after acknowledgment until matching full snapshot, not synchronized one-way latency.",
+    "No production capacity increase is authorized by this report alone."
+  ]
+}

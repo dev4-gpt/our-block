@@ -90,6 +90,7 @@ export default function World({
     worldPlan.roads.forEach((o) => worldBox(o));
     const pickers: T.Object3D[] = [];
     const labelEls: HTMLDivElement[] = [];
+    const gardenPlants: T.Mesh[] = [];
     for (const d of districts) {
       const g = new T.Group();
       scene.add(g);
@@ -119,6 +120,7 @@ export default function World({
               0.9,
               z + (Math.floor(k / 3) - 0.5),
             );
+            gardenPlants.push(plant);
             g.add(plant);
           }
         }
@@ -179,6 +181,31 @@ export default function World({
       tree.castShadow = true;
       scene.add(tree);
     }
+    const garden = districtGarden();
+    function districtGarden() {
+      return districts.find((d) => d.id === "garden")!;
+    }
+    // A visible gap becomes a fitted pipe, then water reaches the beds after testing.
+    const supply = new T.Group();
+    scene.add(supply);
+    box(2.8, 0.35, 0.35, garden.x - 4, 0.55, garden.z + 3, "#656969", supply);
+    box(2.8, 0.35, 0.35, garden.x, 0.55, garden.z + 3, "#656969", supply);
+    const fitting = new T.Group();
+    scene.add(fitting);
+    box(1.3, 0.45, 0.45, garden.x - 2, 0.55, garden.z + 3, "#d7af63", fitting);
+    const water = new T.Group();
+    scene.add(water);
+    for (let i = 0; i < 4; i++)
+      box(
+        0.18,
+        0.08,
+        9,
+        garden.x - 3 + i * 1.7,
+        0.52,
+        garden.z - 1,
+        "#a7e3ef",
+        water,
+      );
     const improvements = new Map<string, T.Group>();
     for (const d of districts) {
       const g = new T.Group();
@@ -276,6 +303,15 @@ export default function World({
     function animate() {
       frame = requestAnimationFrame(animate);
       const s = latest.current.state;
+      const watered =
+        !!s?.gardenRepair?.tested ||
+        s?.contracts?.garden?.status === "complete";
+      fitting.visible = !!s?.gardenRepair;
+      water.visible = watered;
+      for (const plant of gardenPlants) {
+        plant.scale.y = watered ? 1 : 0.35;
+        plant.material = mat(watered ? "#5d8b54" : "#a58d60");
+      }
       for (const [id, g] of improvements)
         g.visible =
           s?.contracts?.[id === "hall" ? "evening" : id]?.status === "complete";

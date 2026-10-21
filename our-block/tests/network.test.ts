@@ -21,6 +21,7 @@ test(
           env: {
             ...process.env,
             PORT: "3012",
+            MAX_PLAYERS: "8",
             DATA_DIR: data,
             DATABASE_URL: process.env.TEST_DATABASE_URL || "",
           },

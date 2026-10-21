@@ -1,8 +1,8 @@
 # OUR BLOCK — implementation design and acceptance record
 
-Audience: ages 9–15. One to four invited residents run a youth cooperative in a compact 3D neighborhood. Fictional credits represent choices and consequences, not real financial products. The learning loop is observe → investigate → plan → acquire → act → compare result → adjust.
+Audience: mixed-age families and friends, with usability still to be tested across participants. One to four invited residents run a cooperative in a compact 3D neighborhood. Fictional credits represent choices and consequences, not real financial products. The learning loop is observe → investigate → plan → acquire → act → compare result → adjust.
 
-Six districts are connected by walkable streets and open-front interiors: Home, Market, Workshop, Garden, Depot and Hall. Activities, offers, upgrades and projects are defined in shared/content.ts. Rules and transactional mutations are server-owned in shared/game.ts; navigation uses shared/navigation.ts. There are no required quizzes or voice chat.
+Six districts are connected by walkable streets and open-front interiors: Home, Market, Workshop, Garden, Depot and Hall. Activities, offers, upgrades and projects are defined in shared/content.ts. Rules and transactional mutations are server-owned in shared/game.ts; navigation uses shared/navigation.ts. There are no required quizzes or voice chat. Guided, Light and Off guidance are personal choices; evidence and prices are identical. New towns default to untimed exploration.
 
 ## Current playable content
 
@@ -13,7 +13,7 @@ Six districts are connected by walkable streets and open-front interiors: Home, 
 - Depot: order packing, route/receipt investigation, independent desk verification; cart and shelving improvements.
 - Hall: food preparation, setup job, hire-term inspection; optional kitchen rental and event equipment.
 
-Three cross-district commissions have alternative solutions and alternating supply demands. Garden: connector or whole hose, with a protective pad for repeat variant. Market: paper or reusable packaging; one or two orders. Evening: prepared food or packed produce, hired or owned lighting; one or two stools. Wrong unused purchases can be returned; contracts can be canceled without fees and renegotiated after expiry. Evidence persists because residents retain what they learned.
+Three cross-district commissions have alternative solutions and alternating supply demands. Garden: investigate, carry a connector or whole hose, fit and explicitly test water flow, with a protective pad for repeat variant. Market: paper or reusable packaging; one or two orders. Evening: prepared food or packed produce, hired or owned lighting; one or two stools. Wrong unused purchases can be returned; contracts can be canceled without fees and renegotiated after expiry. Evidence persists because residents retain what they learned.
 
 ## Economy and time
 
@@ -23,12 +23,14 @@ Life day: 1200 active seconds. The town stops at day review and when all residen
 
 ## Visual and accessibility baseline
 
-Procedural pastel low-poly neighborhood, warm light, named landmarks and visible improvement markers. Rotatable/zoomable camera, keyboard and tap walking, server-routed doorways. HTML controls expose all actions; map mode works without WebGL. Reduced motion and optional musical feedback. No external model calls or proprietary generated assets.
+Procedural pastel low-poly neighborhood, warm light, named landmarks and visible improvement markers. Rotatable/zoomable camera, keyboard and tap walking, server-routed doorways. HTML controls expose all actions; map mode works without WebGL. Reduced motion and optional musical feedback. No external model calls in gameplay. In-game assets remain original procedural geometry; separate promotional key art is AI-assisted and labeled.
 
 ## Verification and remaining acceptance
 
 Automated rules prove both initial project approaches and alternate commission supplies. Socket integration covers four seats, isolation, recovery and server restart. These do not prove human comprehension or learning transfer.
 
-Remaining external gates: five unfamiliar pairs (four first-project successes without creator help); transfer to a new unlabeled scenario; voluntary replay; actual 375px device and sustained 30 FPS; measured 10 Mbps load; public hosting/external networks; real gameplay capture; Unity builds and mixed-client sessions. Keep these unchecked until observed.
+Remaining external gates: five unfamiliar pairs (four first-project successes without creator help); transfer to a new unlabeled scenario; voluntary replay; actual 375px device and sustained 30 FPS; measured 10 Mbps load; current-candidate public deployment and external-network projects; real gameplay capture; Unity gameplay and mixed-client sessions. Keep these unchecked until observed.
 
 Current investigations return authored observations after interaction. Future polish should add richer object manipulation, animations and more differentiated local stories. Do not describe this prototype as a fully validated six-district life simulation or claim a prize outcome.
+
+The current release plan, migration/operations safeguards and measured evidence are tracked in [RELEASE_PLAN.md](docs/RELEASE_PLAN.md).

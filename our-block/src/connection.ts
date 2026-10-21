@@ -22,6 +22,7 @@ type Options = {
   uncertain: () => void;
   schedule?: (fn: () => void, ms: number) => any;
   cancel?: (handle: any) => void;
+  now?: () => number;
 };
 /** Reconnects seats only. Economic commands are never queued or retransmitted. */
 export class TownConnection {
@@ -31,6 +32,8 @@ export class TownConnection {
   private deadline: any;
   private generation = 0;
   private attempts = 0;
+  private retryStarted?: number;
+  private budgetTimer: any;
   private ready = false;
   private stopped = true;
   private pending = new Set<string>();
@@ -46,6 +49,10 @@ export class TownConnection {
     this.request = { ...request };
     this.stopped = false;
     this.attempts = 0;
+    this.retryStarted = undefined;
+    this.retry(this.generation);
+    this.cancel(this.timer);
+    this.attempts = 0;
     void this.open(this.generation);
   }
   stop() {
@@ -54,6 +61,8 @@ export class TownConnection {
     this.generation++;
     this.cancel(this.timer);
     this.cancel(this.deadline);
+    this.cancel(this.budgetTimer);
+    this.retryStarted = undefined;
     if (this.ws) {
       this.ws.onclose = null;
       this.ws.close();
@@ -72,6 +81,24 @@ export class TownConnection {
     if (this.pending.size) {
       this.pending.clear();
       this.options.uncertain();
+    }
+    if (this.retryStarted === undefined) {
+      this.retryStarted = (this.options.now || Date.now)();
+      this.budgetTimer = this.schedule(() => {
+        if (this.ready || this.stopped || generation !== this.generation)
+          return;
+        this.cancel(this.timer);
+        this.cancel(this.deadline);
+        if (this.ws) {
+          this.ws.onclose = null;
+          this.ws.close();
+        }
+        this.generation++;
+        this.options.status(
+          "Unable to connect after 90 seconds. Use Reconnect to try again; no purchase was retried.",
+          false,
+        );
+      }, 90000);
     }
     if (++this.attempts > 10) {
       this.options.status(
@@ -128,9 +155,11 @@ export class TownConnection {
         this.request = { code: m.code, token: m.token };
         joined = true;
         this.attempts = 0;
-        this.cancel(this.deadline);
       }
       if (m.type === "state" && joined) {
+        this.cancel(this.budgetTimer);
+        this.retryStarted = undefined;
+        this.cancel(this.deadline);
         this.ready = true;
         this.options.status("", true);
       }
@@ -139,6 +168,7 @@ export class TownConnection {
       }
       if (m.type === "error" && !joined) {
         failedJoin = true;
+        this.cancel(this.budgetTimer);
         this.cancel(this.deadline);
         ws.close();
         this.options.status(m.message, false);
@@ -151,6 +181,7 @@ export class TownConnection {
       if (this.stopped || generation !== this.generation) return;
       this.ready = false;
       if (e.code === 4001) {
+        this.cancel(this.budgetTimer);
         this.options.status(
           "This seat was opened elsewhere. Reconnect here only if you want to move it back.",
           false,
@@ -159,6 +190,7 @@ export class TownConnection {
       }
       if (failedJoin) return;
       if (joinSent && !this.request?.token) {
+        this.cancel(this.budgetTimer);
         this.options.status(
           "The connection closed before a seat was confirmed. Check the invitation or start again; no purchase was retried.",
           false,

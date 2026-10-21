@@ -1,4 +1,5 @@
 import http from "node:http";
+import { validateCommand, errorCode, Budget } from "./validation.ts";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
@@ -20,6 +21,13 @@ const service = new TownService(await openStore());
 await service.load();
 const towns = service.towns;
 let shuttingDown = false;
+const maxPlayers = Math.min(
+  100,
+  Math.max(4, Number(process.env.MAX_PLAYERS || 4)),
+);
+const handshakes = new Budget(180, 60000),
+  creations = new Budget(30, 3600000);
+let outgoingBytes = 0;
 const prod = process.argv.includes("--production");
 const vite = prod
   ? null
@@ -29,7 +37,21 @@ const vite = prod
 const server = http.createServer((req, res) => {
   if (req.url === "/health") {
     res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ ok: true, protocol: 1, towns: towns.size }));
+    res.end(
+      JSON.stringify({
+        ok: !shuttingDown,
+        protocol: 1,
+        towns: towns.size,
+        availability: service.availability,
+        capacity: maxPlayers,
+        online: [...towns.values()].reduce(
+          (n, t) => n + t.players.filter((p) => p.online).length,
+          0,
+        ),
+        outgoingBytes,
+        rss: process.memoryUsage().rss,
+      }),
+    );
     return;
   }
   if (vite) {
@@ -83,6 +105,11 @@ const wss = new WebSocketServer({
     req: http.IncomingMessage;
   }) => {
     try {
+      if (
+        !handshakes.take(req.socket.remoteAddress || "unknown") ||
+        wss.clients.size >= maxPlayers + 8
+      )
+        return false;
       return !origin || new URL(origin).host === req.headers.host;
     } catch {
       return false;
@@ -91,14 +118,25 @@ const wss = new WebSocketServer({
 });
 const clients = new Map<WebSocket, { code: string; id: string }>();
 function send(ws: WebSocket, x: unknown) {
-  if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(x));
+  if (ws.readyState === WebSocket.OPEN) {
+    const body = JSON.stringify(x);
+    outgoingBytes += Buffer.byteLength(body);
+    if (ws.bufferedAmount > 262144) {
+      ws.close(1013, "Connection too slow; recover your saved seat.");
+      return;
+    }
+    ws.send(body);
+  }
 }
 function broadcast(t: Town) {
   for (const [ws, c] of clients)
     if (c.code === t.code)
-      send(ws, { type: "state", state: snapshot(t, c.id) });
+      send(ws, {
+        type: "state",
+        state: { ...snapshot(t, c.id), availability: service.availability },
+      });
 }
-wss.on("connection", (ws) => {
+wss.on("connection", (ws, req) => {
   let n = 0,
     start = Date.now(),
     joinedOrJoining = false;
@@ -127,58 +165,112 @@ wss.on("connection", (ws) => {
           if (m.type === "join") {
             if (joinedOrJoining) throw Error("Already joined.");
             joinedOrJoining = true;
+            if (
+              Object.keys(m).some(
+                (k) => !["type", "code", "token", "name", "mode"].includes(k),
+              ) ||
+              (m.code && !/^[A-Za-z0-9]{6}$/.test(m.code)) ||
+              (m.token &&
+                (typeof m.token !== "string" || m.token.length > 128)) ||
+              (m.name && (typeof m.name !== "string" || m.name.length > 24))
+            )
+              throw Error("Invalid join request.");
             let code = String(m.code || "").toUpperCase();
             if (!code) {
+              if (!creations.take(req.socket.remoteAddress || "unknown"))
+                throw Error(
+                  "CAPACITY: Please wait before creating another town.",
+                );
+              await service.refreshUsage(true);
+              if (service.usage.towns >= 500 || service.storageRatio >= 0.8)
+                throw Error(
+                  "CAPACITY: New towns are paused. Existing progress is preserved.",
+                );
               if (towns.size >= 500) throw Error("Town capacity reached.");
               do {
                 code = randomBytes(3).toString("hex").toUpperCase();
               } while (towns.has(code));
             }
-            await service.run(code, async () => {
-              if (ws.readyState !== WebSocket.OPEN) return;
-              const existing = towns.get(code);
-              if (m.code && !existing)
-                throw Error("Town not found. Check your invitation.");
-              const t = existing
-                ? structuredClone(existing)
-                : createTown(code, m.mode === "explore" ? "explore" : "life");
-              let p = t.players.find((x) => x.token === m.token);
-              if (!p) {
-                if (m.token) throw Error("Seat recovery token is invalid.");
-                p = join(
-                  t,
-                  String(m.name || "Neighbor"),
-                  randomBytes(24).toString("hex"),
-                );
-              }
-              p.online = true;
-              t.revision++;
-              await service.commit(t);
-              for (const [old, c] of clients)
-                if (c.code === code && c.id === p.id) {
-                  clients.delete(old);
-                  old.close(4001, "Seat opened elsewhere");
+            await service.run("$admission", () =>
+              service.run(code, async () => {
+                if (ws.readyState !== WebSocket.OPEN) return;
+                if (!m.code) {
+                  await service.refreshUsage(true);
+                  if (service.usage.towns >= 500 || service.storageRatio >= 0.8)
+                    throw Error(
+                      "CAPACITY: New towns are paused. Existing progress is preserved.",
+                    );
                 }
-              clients.set(ws, { code, id: p.id });
-              send(ws, { type: "joined", code, token: p.token, id: p.id });
-              broadcast(t);
-            });
+                const existing = await service.ensure(code);
+                if (m.code && !existing)
+                  throw Error("Town not found. Check your invitation.");
+                const t = existing
+                  ? structuredClone(existing)
+                  : createTown(code, m.mode === "life" ? "life" : "explore");
+                let p = t.players.find((x) => x.token === m.token);
+                if (m.token && !p)
+                  throw Error("Seat recovery token is invalid.");
+                const occupied = [...towns.values()].reduce(
+                  (n, t) => n + t.players.filter((x) => x.online).length,
+                  0,
+                );
+                const active = [...towns.values()].filter((t) =>
+                  t.players.some((x) => x.online),
+                ).length;
+                if (
+                  !p?.online &&
+                  (occupied >= maxPlayers ||
+                    (!existing?.players.some((x) => x.online) && active >= 25))
+                )
+                  throw Error(
+                    "CAPACITY: The server is full. Your saved seat is valid; wait and reconnect.",
+                  );
+                if (!p) {
+                  if (m.token) throw Error("Seat recovery token is invalid.");
+                  p = join(
+                    t,
+                    String(m.name || "Neighbor"),
+                    randomBytes(24).toString("hex"),
+                  );
+                }
+                p.online = true;
+                t.revision++;
+                await service.commit(t);
+                for (const [old, c] of clients)
+                  if (c.code === code && c.id === p.id) {
+                    clients.delete(old);
+                    old.close(4001, "Seat opened elsewhere");
+                  }
+                clients.set(ws, { code, id: p.id });
+                send(ws, { type: "joined", code, token: p.token, id: p.id });
+                broadcast(t);
+              }),
+            );
             return;
           }
           const c = clients.get(ws);
           if (!c) throw Error("Join first.");
+          validateCommand(m);
           const result = await service.action(c.code, c.id, m);
-          send(ws, { type: "result", id: m.id, message: result.message });
+          send(ws, {
+            type: "result",
+            id: m.id,
+            message: result.message,
+            code: "ACCEPTED",
+            revision: result.town.revision,
+            duplicate: !!result.duplicate,
+          });
           broadcast(result.town);
         } catch (e) {
           const message = (e as Error).message;
           const publicError =
-            /^(STALE:|Already |Town |Seat |Invalid |Join |Unsupported |Walk |Choose |You |Not |No |A |The |This |Your |Their |Meet |Review |Rent |Contact |Resolve |Stay |Unknown |Accept |Renegotiate |Inspect |Check |All |One |Backpack |Shared |Please |Server )/.test(
+            /^(CAPACITY:|READ_ONLY:|STALE:|Already |Town |Seat |Invalid |Join |Unsupported |Walk |Choose |You |Not |No |A |The |This |Your |Their |Meet |Review |Rent |Contact |Resolve |Stay |Unknown |Accept |Renegotiate |Inspect |Check |All |One |Backpack |Shared |Please |Server )/.test(
               message,
             );
           send(ws, {
             type: "error",
             id: m?.id,
+            code: errorCode(message),
             message: publicError
               ? message
               : "Save unavailable. No action was confirmed. Reconnect and review the town before trying again.",
@@ -223,15 +315,24 @@ const timer = setInterval(async () => {
   const flush = now - saveAt >= 2000;
   if (flush) saveAt = now;
   try {
+    const availabilityBefore = service.availability;
     await Promise.all(
       [...towns.keys()].map(async (code) => {
+        const sequence = towns.get(code)?.movementSequence,
+          revision = towns.get(code)?.revision;
         try {
           await service.advance(code, dt, flush);
         } catch {
           console.error("Periodic save delayed; will retry.");
         }
-        const t = towns.get(code)!;
-        if (t.players.some((p) => p.online)) broadcast(t);
+        const t = towns.get(code);
+        if (
+          t?.players.some((p) => p.online) &&
+          (t.movementSequence !== sequence ||
+            t.revision !== revision ||
+            service.availability !== availabilityBefore)
+        )
+          broadcast(t);
       }),
     );
   } finally {

@@ -48,7 +48,9 @@ class Peer {
       revision = this.state.revision;
     this.ws.send(JSON.stringify({ v: 1, id, revision, type, ...extra }));
     await this.wait(
-      () => this.results.has(id) && this.state.revision > revision,
+      () =>
+        this.results.has(id) &&
+        this.state.revision >= (this.results.get(id).revision ?? revision + 1),
       "action " + type,
     );
   }
@@ -98,6 +100,8 @@ try {
       "approved purchase",
     );
     await a.walk(-15, 15);
+    await a.act("fit", { item: "connector" });
+    await a.act("test");
     await a.act("complete", { target: "garden" });
     if (a.state.funds !== 337 || a.state.contracts.garden.status !== "complete")
       throw Error("Project completion failed.");

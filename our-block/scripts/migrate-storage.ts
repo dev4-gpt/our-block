@@ -1,14 +1,17 @@
 import { DatabaseSync } from "node:sqlite";
-import { PostgresStore } from "../server/storage.ts";
+import { type StoredReceipt, PostgresStore } from "../server/storage.ts";
 import { restore, type Town } from "../shared/game.ts";
 
 /** Read-only source; destination inserts are all-or-nothing and never overwrite. */
 export async function importSQLite(
   filename: string,
-  destination: { importAll(towns: Town[]): Promise<void> },
+  destination: {
+    importAll(towns: Town[], receipts?: StoredReceipt[]): Promise<void>;
+  },
 ) {
   const db = new DatabaseSync(filename, { readOnly: true });
   let towns: Town[];
+  let receipts: StoredReceipt[] = [];
   try {
     towns = db
       .prepare("SELECT code,data FROM towns")
@@ -19,10 +22,20 @@ export async function importSQLite(
         restore(structuredClone(raw)); // validate without clearing source seat state
         return raw as Town;
       });
+    if (
+      db
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='receipts'",
+        )
+        .get()
+    )
+      receipts = db
+        .prepare("SELECT code,player,id,fingerprint,message FROM receipts")
+        .all() as StoredReceipt[];
   } finally {
     db.close();
   }
-  await destination.importAll(towns);
+  await destination.importAll(towns, receipts);
   return towns.length;
 }
 if (process.argv[1]?.endsWith("migrate-storage.ts")) {
