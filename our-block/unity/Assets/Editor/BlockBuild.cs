@@ -14,6 +14,8 @@ public static class BlockBuild
    Directory.CreateDirectory("Assets/Resources");
    File.WriteAllText("Assets/Resources/ServerConfig.json",Newtonsoft.Json.JsonConvert.SerializeObject(new {server=address}));
    AssetDatabase.ImportAsset("Assets/Resources/ServerConfig.json");
+   var playerSettings=new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset")[0]);
+   if(playerSettings.FindProperty("activeInputHandler").intValue!=2)throw new System.Exception("Enable both input backends before editor compilation using committed ProjectSettings.asset.");
    if(EditorUserBuildSettings.activeBuildTarget==BuildTarget.StandaloneOSX)PlayerSettings.SetArchitecture(UnityEditor.Build.NamedBuildTarget.Standalone,1);
    Prepare();
  }

@@ -26,7 +26,7 @@ Account verification (October 20, 2026): the signed-in DevOps dashboard reports 
 Prepared manual configuration (not yet enabled):
 - Repository project subdirectory: `our-block/unity`.
 - Editor: `6000.3.25f1`; if unavailable, do not silently select another version.
-- Pre-build shell script: `our-block/scripts/unity-prebuild.sh` (repository-root path).
+- Pre-build shell script: `../scripts/unity-prebuild.sh` (relative to the Unity project subfolder; verified from the first cloud build log).
 - Pre-export static method: `BlockBuild.PreExport` (prepares generated scene and URP; does not recursively call BuildPipeline).
 - Environment: `OUR_BLOCK_SERVER_URL=wss://our-block-1ooe.onrender.com/ws`. This is a public endpoint, not a database credential.
 - Target one: macOS, Apple Silicon. Target two: Windows x86-64 after Mac success and quota review.
