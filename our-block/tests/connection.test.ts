@@ -58,6 +58,38 @@ function setup() {
   };
 }
 const turn = () => new Promise((r) => setImmediate(r));
+test("repeated walking input cannot postpone frozen-stream recovery", async () => {
+  const s = setup();
+  s.client.start({ code: "ABC", token: "seat" });
+  await turn();
+  const ws = s.sockets[0];
+  ws.onopen({});
+  ws.receive({ type: "joined", code: "ABC", token: "seat" });
+  ws.receive({ type: "state", state: {} });
+  s.client.send({ id: "walk1", type: "move", x: 1, z: 2 });
+  const deadline = s.jobs.find((j) => j.ms === 5000)!;
+  for (let i = 0; i < 50; i++) s.client.send({ id: `walk-${i}`, type: "move", x: 2, z: 2 });
+  assert.equal(s.jobs.find((j) => j.ms === 5000), deadline);
+  deadline.fn();
+  assert.equal(ws.readyState, 3);
+  s.client.stop();
+});
+test("seat opened elsewhere clears sending status without replaying uncertain spending", async () => {
+  const s = setup();
+  s.client.start({ code: "ABC", token: "seat" });
+  await turn();
+  const ws = s.sockets[0];
+  ws.onopen({});
+  ws.receive({ type: "joined", code: "ABC", token: "seat" });
+  ws.receive({ type: "state", state: {} });
+  s.client.send({ id: "buy", type: "buy" });
+  ws.onclose({ code: 4001 });
+  assert.equal(s.uncertain, 1);
+  assert.match(s.states.at(-1)!, /opened elsewhere/);
+  assert(!s.client.send({ id: "again", type: "buy" }));
+  assert.equal(s.jobs.length, 0);
+  s.client.stop();
+});
 test("stalled moving snapshots recover the seat without replaying purchases", async () => {
   const s = setup();
   s.client.start({ code: "ABC", token: "seat" });

@@ -70,6 +70,14 @@ test(
     }
     try {
       await start();
+      const health = await fetch("http://127.0.0.1:3012/health");
+      assert.equal(health.status, 200);
+      assert.equal(health.headers.get("cache-control"), "no-store");
+      assert.match((await health.json()).release, /^\d{4}\.\d{2}\.\d{2}-rc\d+$/);
+      const support = await fetch("http://127.0.0.1:3012/support.html");
+      assert.match(support.headers.get("content-type") || "", /^text\/html/);
+      assert.equal(support.headers.get("cache-control"), "no-store");
+      assert.match(await support.text(), /profiles\/r9qfrx/);
       const a = await client({ name: "A" }),
         seat = await a.wait((m) => m.type === "joined");
       const b = await client({ name: "B", code: seat.code });

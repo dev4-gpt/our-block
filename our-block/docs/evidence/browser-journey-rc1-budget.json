@@ -1,0 +1,17 @@
+{
+  "scope": "isolated local production browser journey, two software-controlled residents, not physical devices",
+  "release": "2026.10.23-rc1",
+  "startingFunds": 300,
+  "gardenComplete": true,
+  "marketComplete": true,
+  "eveningComplete": false,
+  "stopReason": "Local browser outgoing traffic ceiling",
+  "bytes": 10052258,
+  "budget": 10000000,
+  "limitations": [
+    "Sampling overshoot retained",
+    "Final evening delivery not completed",
+    "Final notice correction tested separately",
+    "Not an unfamiliar-player or learning evaluation"
+  ]
+}

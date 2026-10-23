@@ -21,6 +21,8 @@ import {
 import DeviceCheck from "./DeviceCheck.tsx";
 import { commandId } from "./ids.ts";
 import { TownConnection } from "./connection.ts";
+import { RELEASE } from "../shared/release.ts";
+import { decisionNotice } from "./decision-notice.ts";
 const World = lazy(() => import("./World.tsx"));
 const storageKey = "our-block-seat";
 function App() {
@@ -113,25 +115,9 @@ function App() {
         }
         if (m.type === "state") {
           setState(m.state);
-          const resolved = previousPending.current.find(
-            (q) => !m.state.pending.some((n: any) => n.id === q.id),
-          );
-          if (resolved) {
-            const d = m.state.decisions?.find((d: any) => d.id === resolved.id);
-            setNotice(
-              d?.text || "Request resolved. Review the latest balance.",
-            );
-          }
+          const decisionUpdate = decisionNotice(previousPending.current, m.state);
+          if (decisionUpdate) setNotice(decisionUpdate);
           previousPending.current = m.state.pending;
-          const decision = m.state.decisions
-            ?.filter((d: any) => d.by === m.state.you)
-            .at(-1);
-          if (decision)
-            setNotice((previous) =>
-              previous.startsWith("A teammate must approve")
-                ? decision.text
-                : previous,
-            );
         }
         if (m.type === "error") {
           setError(m.message);
@@ -325,7 +311,10 @@ function App() {
           {connectionStatus && <p role="status">{connectionStatus}</p>}
           {error && <p role="alert">{error}</p>}
         </div>
-        <footer>1–4 FRIENDS · SIX DISTRICTS · NO MICROPHONE NEEDED</footer>
+        <footer>1–4 FRIENDS · SIX DISTRICTS · NO MICROPHONE NEEDED<br />
+          Release {RELEASE} · Four online places across this free service.<br />
+          <a href="/support.html">Support & release limits</a>
+        </footer>
       </main>
     );
   const district = districts.find((x) => x.id === selected)!;
@@ -1319,8 +1308,10 @@ function App() {
       </main>
       <footer className="foot">
         <span>Built together. Learned by doing.</span>
+        <span>Release {RELEASE}</span>
         <a href="/credits.txt">Credits</a>{" "}
         <a href="/privacy.txt">Playtest privacy & support</a>
+        <a href="/support.html">Support & release limits</a>
         <span>
           {state.players.filter((p: any) => p.online).length === 1
             ? "EMBER · solo helper available at Home"

@@ -6,6 +6,7 @@ import { randomBytes } from "node:crypto";
 import { openStore } from "./storage.ts";
 import { TownService } from "./towns.ts";
 import { SimulationClock } from "./simulation-clock.ts";
+import { RELEASE } from "../shared/release.ts";
 import { WebSocketServer, WebSocket } from "ws";
 import {
   GameRuleError,
@@ -38,11 +39,14 @@ const vite = prod
     ).createServer({ server: { middlewareMode: true }, appType: "spa" });
 const server = http.createServer((req, res) => {
   if (req.url === "/health") {
+    res.statusCode = shuttingDown ? 503 : 200;
+    res.setHeader("Cache-Control", "no-store");
     res.setHeader("Content-Type", "application/json");
     res.end(
       JSON.stringify({
         ok: !shuttingDown,
         protocol: 1,
+        release: RELEASE,
         towns: towns.size,
         availability: service.availability,
         capacity: maxPlayers,
@@ -76,11 +80,13 @@ const server = http.createServer((req, res) => {
   if (!existsSync(file) || !path.extname(file))
     file = path.resolve("dist/index.html");
   try {
+    if (path.extname(file) === ".html")
+      res.setHeader("Cache-Control", "no-store");
     res.setHeader(
       "Content-Type",
       (
         {
-          ".html": "text/html",
+          ".html": "text/html; charset=utf-8",
           ".js": "text/javascript",
           ".css": "text/css",
           ".png": "image/png",
@@ -237,7 +243,7 @@ wss.on("connection", (ws, req) => {
                     (!existing?.players.some((x) => x.online) && active >= 25))
                 )
                   throw Error(
-                    "CAPACITY: The server is full. Your saved seat is valid; wait and reconnect.",
+                    `CAPACITY: All ${maxPlayers} server places are occupied. Existing towns are preserved; wait and reconnect.`,
                   );
                 if (!p) {
                   if (m.token) throw Error("Seat recovery token is invalid.");

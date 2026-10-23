@@ -1,3 +1,5 @@
+> Current release decisions and open gates: [RELEASE_STATUS.md](RELEASE_STATUS.md). The record below preserves historical evidence.
+
 # Competition polish — implementation and acceptance record
 
 ## Candidate behavior

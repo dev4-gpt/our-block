@@ -38,6 +38,12 @@ export class TownConnection {
   private stopped = true;
   private pending = new Set<string>();
   private movementTimer: any;
+  private connectedBefore = false;
+  private clearUncertain() {
+    if (!this.pending.size) return;
+    this.pending.clear();
+    this.options.uncertain();
+  }
   constructor(private options: Options) {}
   private schedule(fn: () => void, ms: number) {
     return (this.options.schedule || setTimeout)(fn, ms);
@@ -63,7 +69,7 @@ export class TownConnection {
     this.cancel(this.timer);
     this.cancel(this.deadline);
     this.cancel(this.budgetTimer);
-    this.cancel(this.movementTimer);
+    this.cancelMovement();
     this.retryStarted = undefined;
     if (this.ws) {
       this.ws.onclose = null;
@@ -76,12 +82,16 @@ export class TownConnection {
     if (!["move", "ping", "ack"].includes(command.type))
       this.pending.add(command.id);
     this.ws.send(JSON.stringify(command));
-    if (command.type === "move") this.watchMovement(this.ws);
+    if (command.type === "move" && this.movementTimer === undefined) this.watchMovement(this.ws);
     return true;
+  }
+  private cancelMovement() {
+    this.cancel(this.movementTimer);
+    this.movementTimer = undefined;
   }
   /** Only expect updates during movement; idle towns generate no watchdog traffic. */
   private watchMovement(ws: SocketLike) {
-    this.cancel(this.movementTimer);
+    this.cancelMovement();
     this.movementTimer = this.schedule(() => {
       if (this.stopped || this.ws !== ws) return;
       this.ready = false;
@@ -104,11 +114,8 @@ export class TownConnection {
   private retry(generation: number) {
     if (this.stopped || generation !== this.generation) return;
     this.ready = false;
-    this.cancel(this.movementTimer);
-    if (this.pending.size) {
-      this.pending.clear();
-      this.options.uncertain();
-    }
+    this.cancelMovement();
+    this.clearUncertain();
     if (this.retryStarted === undefined) {
       this.retryStarted = (this.options.now || Date.now)();
       this.budgetTimer = this.schedule(() => {
@@ -146,7 +153,9 @@ export class TownConnection {
   private async open(generation: number) {
     if (this.stopped || generation !== this.generation) return;
     this.options.status(
-      "Waking the server… Free hosting can take about a minute.",
+      this.connectedBefore
+        ? "Reconnecting your saved seat… Review the latest town before acting."
+        : "Connecting… Free hosting can take about a minute to wake.",
       false,
     );
     try {
@@ -163,7 +172,7 @@ export class TownConnection {
       failedJoin = false;
     this.deadline = this.schedule(() => ws.close(), 20000);
     ws.onopen = () => {
-      if (this.stopped || generation !== this.generation) {
+      if (this.stopped || generation !== this.generation || this.ws !== ws) {
         ws.close();
         return;
       }
@@ -184,13 +193,14 @@ export class TownConnection {
         this.attempts = 0;
       }
       if (m.type === "state" && joined) {
-        this.cancel(this.movementTimer);
+        this.cancelMovement();
         if (m.state?.players?.some((p: any) => p.online && p.target))
           this.watchMovement(ws);
         this.cancel(this.budgetTimer);
         this.retryStarted = undefined;
         this.cancel(this.deadline);
         this.ready = true;
+        this.connectedBefore = true;
         this.options.status("", true);
       }
       if (m.type === "result" || m.type === "error") {
@@ -207,11 +217,13 @@ export class TownConnection {
     };
     ws.onerror = () => {}; // close owns retries; never submit a second copy of an action.
     ws.onclose = (e) => {
-      this.cancel(this.movementTimer);
+      if (this.ws !== ws) return;
+      this.cancelMovement();
       this.cancel(this.deadline);
       if (this.stopped || generation !== this.generation) return;
       this.ready = false;
       if (e.code === 4001) {
+        this.clearUncertain();
         this.cancel(this.budgetTimer);
         this.options.status(
           "This seat was opened elsewhere. Reconnect here only if you want to move it back.",

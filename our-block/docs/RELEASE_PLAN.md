@@ -1,3 +1,5 @@
+> Current release decisions and open gates: [RELEASE_STATUS.md](RELEASE_STATUS.md). The record below preserves historical evidence.
+
 # OUR BLOCK release plan and evidence
 
 Updated October 21, 2026. Competition candidate first; broader production acceptance afterward. This document records gates, not a readiness certification.
