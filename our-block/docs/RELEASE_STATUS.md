@@ -2,6 +2,8 @@
 
 Updated October 23, 2026. This is the current decision record; RELEASE_PLAN.md and POLISH_ACCEPTANCE.md retain historical detail and aborted runs. No earlier pass automatically certifies a changed executable. Current public release: `2026.10.23-rc1`, executable `bb8d076fc0cb5542ab8cc5b1902ca0e229c13ff1`, Render deployment `dep-dbdvf3navr4c739id4kg`. Deployed and health/recovery verified; not submitted.
 
+**Submission-preparation handoff is complete.** The entrant retained Publish. The challenge's game requirements are two players on separate devices, understandable rules and a reachable public URL. The one-hour soak and detailed device/usability targets below are additional internal quality checks, not official competition entry requirements. Do not hold the prepared entry behind those optional checks or imply that they all passed.
+
 ## Required submission behavior
 
 | Requirement | Current evidence | Status / remaining work |
@@ -17,7 +19,7 @@ Updated October 23, 2026. This is the current decision record; RELEASE_PLAN.md a
 | Desktop frame cadence | Source 2612de9, Mac Codex browser: 10 minutes, 60/60 windows, lowest 116.5 FPS | Desktop-only pass; screenshot mac-ten-minute-2612de9.png |
 | Independent networks | Historical phone data/Mac Wi-Fi test; latest session both use phone data | Do not label today's session independent networks |
 | Cold wake/10 Mbps interactive load | Asset-only measurements exclude rendering/readiness | OPEN; must observe genuine idle sleep, not artificial keepalive |
-| One-hour final-source soak | New isolated sparse soak running executable bb8d076 with a 20 MB ceiling | Await final report; earlier-source pass does not certify rc1 |
+| One-hour final-source soak (optional) | Additional local run stopped when the user clarified it was not a competition requirement | Not completed; not an entry blocker |
 | Support/privacy | Verified owner profile /profiles/r9qfrx; support.html, privacy.txt, manual runbook | Profile contact can require Handshake access; broader consent/legal/operations review remains open |
 | Entry package | New native final-release 1200×800 cover captured from public rc1; 454-character description | Final form review/preparation pending; optional real video not recorded |
 | Eligibility/Publish | Official rules + signed-in form inspected | Entrant personally declares eligibility and publishes; no publication by agent |
@@ -113,3 +115,9 @@ The user explicitly instructed **do not submit yet** during the physical-phone r
 The user subsequently authorized attaching everything and explicitly retained submission for themselves. The final native gameplay cover uploaded successfully to the multiplayer-challenge form: preview rendered, Replace preview image appeared, and Publish became enabled. Title, URL, 454-character description and the existing Share to Showcase selection remain populated. **Publish was not clicked.** The populated form is preserved for user review, with screenshot `docs/evidence/rc1-entry-ready-for-review.png`. This authorization supersedes the earlier cover-upload hold only; it does not authorize publication.
 
 Phone feedback: user reports **60 FPS and minimal freezes** on iPhone/Chrome. Exact model, whether 60 is the diagnostic's lowest-window value, 10:00/60-of-60 completion and the nature of freezes remain unconfirmed; do not mark the physical-phone gate passed. Mac-side samples show the phone resident at different rendered positions with both residents visible; these are sampled observations, not continuous latency telemetry. Public service remained ready at outgoing counter **14,530,435 bytes**. With the existing 1,000,000-byte HTTP/unmeasured allowance and 12,779,663 local browser bytes, cumulative charged campaign traffic is **1,027,065,274 bytes**, leaving **22,934,726 bytes** before the running soak's final accounting. Keep its 20 MB reservation until its report is final. No additional broad gameplay run fits the unreserved remainder at this checkpoint.
+
+### Optional soak stopped; preparation complete
+
+The user corrected the agent's claim that an hour was required. The agent stopped the additional local run; it returned `Interrupted by operator; partial run retained.` The local server on port 3032 was confirmed no longer reachable. The harness did not produce a final structured report, so no completed-hour pass or exact final byte count is claimed. Conservatively charge its full 20,000,000-byte reservation: cumulative campaign accounting **1,047,065,274 bytes**, leaving **2,934,726 bytes** under the approved ceiling. This allowance is an accounting bound, not a measured total. No further optional test is needed for the requested handoff.
+
+The challenge form's required title, public URL, description and screenshot cover were all populated and verified. The user said they will submit and requested attachment for their own review. No agent publication is authorized or needed. Remaining optional research/performance observations stay disclosed rather than being turned into entry requirements. The entry form is left for the entrant; no further changes should be made while they review.
