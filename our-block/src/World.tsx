@@ -4,10 +4,18 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { districts } from "../shared/content.ts";
 import { worldPlan, type WorldBox } from "../shared/world.ts";
 import { visualPosition, smoothingAlpha } from "./motion.ts";
+import { createScenery } from "./scenery.ts";
+import { createGardenHabitat } from "./garden-habitat.ts";
+import {
+  getWorldTheme,
+  themeColor,
+  type WorldThemeId,
+} from "./world-themes.ts";
 export default function World({
   state,
   selected,
   follow,
+  themeId = "forest",
   onSelect,
   onMove,
   onFail,
@@ -15,16 +23,19 @@ export default function World({
   state: any;
   selected: string;
   follow: boolean;
+  themeId?: WorldThemeId;
   onSelect: (id: string) => void;
   onMove: (x: number, z: number) => void;
   onFail: () => void;
 }) {
   const received = useRef({ state, at: performance.now() });
-  if (received.current.state !== state) received.current = { state, at: performance.now() };
+  if (received.current.state !== state)
+    received.current = { state, at: performance.now() };
   const host = useRef<HTMLDivElement>(null),
     latest = useRef({ state, selected, follow, onSelect, onMove });
   latest.current = { state, selected, follow, onSelect, onMove };
   useEffect(() => {
+    const theme = getWorldTheme(themeId);
     let renderer: T.WebGLRenderer;
     try {
       renderer = new T.WebGLRenderer({ antialias: true, alpha: false });
@@ -39,39 +50,56 @@ export default function World({
       onFail();
     };
     renderer.domElement.addEventListener("webglcontextlost", contextLost);
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.6));
-    renderer.setClearColor("#dce7e5");
+    renderer.setPixelRatio(
+      Math.min(
+        devicePixelRatio,
+        matchMedia("(max-width: 760px)").matches ? 1.25 : 1.6,
+      ),
+    );
+    renderer.toneMapping = T.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.setClearColor(theme.sky);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = T.PCFSoftShadowMap;
     const scene = new T.Scene();
-    scene.fog = new T.Fog("#dce7e5", 75, 160);
-    const camera = new T.PerspectiveCamera(42, 1, 0.1, 200);
+    scene.fog = new T.Fog(theme.sky, 55, 155);
+    scene.background = new T.Color(theme.sky);
+    const scenery = createScenery(theme);
+    scene.add(scenery);
+    const camera = new T.PerspectiveCamera(52, 1, 0.1, 230);
     camera.position.set(42, 48, 52);
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 0, 0);
-    controls.maxPolarAngle = Math.PI / 2.35;
-    controls.minDistance = 12;
+    controls.maxPolarAngle = Math.PI / 2.15;
+    controls.minDistance = 7;
     controls.maxDistance = 95;
     controls.enableDamping = !reduce;
     controls.enablePan = true;
-    const sun = new T.DirectionalLight("#fff2ce", 3);
+    const sun = new T.DirectionalLight(
+      theme.sun,
+      theme.outfit === "space" ? 2.1 : 3,
+    );
     sun.position.set(-25, 50, 15);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.normalBias = 0.04;
     Object.assign(sun.shadow.camera, {
       left: -40,
       right: 40,
       top: 40,
       bottom: -40,
     });
-    scene.add(sun, new T.HemisphereLight("#f7f6e8", "#719177", 2.3));
+    scene.add(sun, new T.HemisphereLight(theme.sun, theme.ground, 2.3));
     const materials = new Map<string, T.MeshStandardMaterial>();
     function mat(c: string) {
       if (!materials.has(c))
         materials.set(
           c,
-          new T.MeshStandardMaterial({ color: c, roughness: 0.85 }),
+          new T.MeshStandardMaterial({
+            color: themeColor(c, theme),
+            roughness: 0.85,
+          }),
         );
       return materials.get(c)!;
     }
@@ -97,6 +125,25 @@ export default function World({
     }
     worldBox(worldPlan.ground);
     worldPlan.roads.forEach((o) => worldBox(o));
+    const habitat =
+      theme.outfit === "space" ? createGardenHabitat() : undefined;
+    if (habitat) scene.add(habitat.group);
+    let gardenRoof: T.Mesh<T.BoxGeometry, T.MeshStandardMaterial> | undefined;
+    if (theme.shelter && !habitat) {
+      const garden = districts.find((d) => d.id === "garden")!;
+      gardenRoof = new T.Mesh(
+        new T.BoxGeometry(12, 0.12, 14),
+        new T.MeshStandardMaterial({
+          color: theme.id === "mountains" ? "#edf5ff" : "#9cdde5",
+          transparent: true,
+          opacity: 0.28,
+          depthWrite: false,
+          roughness: 0.3,
+        }),
+      );
+      gardenRoof.position.set(garden.x, 4.1, garden.z);
+      scene.add(gardenRoof);
+    }
     const pickers: T.Object3D[] = [];
     const labelEls: HTMLDivElement[] = [];
     const gardenPlants: T.Mesh[] = [];
@@ -178,7 +225,11 @@ export default function World({
       el.appendChild(label);
       labelEls.push(label);
     }
-    for (let i = 0; i < 22; i++) {
+    for (
+      let i = 0;
+      i < (theme.id === "forest" || theme.id === "mountains" ? 22 : 0);
+      i++
+    ) {
       const x = i < 11 ? -26 : 26,
         z = (i % 11) * 4.3 - 22;
       box(0.35, 1.5, 0.35, x, 0.7, z, "#8b7156");
@@ -319,18 +370,22 @@ export default function World({
       renderer.setSize(w, h);
       camera.aspect = w / h;
       controls.maxDistance = 95 * Math.max(1, h / w);
-      camera.position.set(42, 48, 52).multiplyScalar(Math.max(1, h / w));
+      if (!latest.current.follow && !wasFollowing)
+        camera.position.set(42, 48, 52).multiplyScalar(Math.max(1, h / w));
       camera.updateProjectionMatrix();
     });
     resize.observe(el);
 
     const avatarLabels = new Map<string, HTMLDivElement>();
-    let wasFollowing = false, previousFrame = performance.now();
+    let wasFollowing = false,
+      previousFrame = performance.now();
     function animate() {
       frame = requestAnimationFrame(animate);
-      const now = performance.now(), frameSeconds = Math.min(0.1, (now - previousFrame) / 1000);
+      const now = performance.now(),
+        frameSeconds = Math.min(0.1, (now - previousFrame) / 1000);
       previousFrame = now;
       const s = latest.current.state;
+      habitat?.update(s?.players || [], frameSeconds, reduce);
       const watered =
         !!s?.gardenRepair?.tested ||
         s?.contracts?.garden?.status === "complete";
@@ -354,9 +409,18 @@ export default function World({
         let g = avatars.get(p.id);
         if (!g) {
           g = new T.Group();
+          const suit = theme.outfit === "space",
+            winter = theme.outfit === "winter",
+            beach = theme.outfit === "beach";
+          const clothing = suit ? "#e6edf1" : colors[i % colors.length];
           const body = new T.Mesh(
-            new T.CapsuleGeometry(0.35, 0.65, 4, 8),
-            mat(colors[i]),
+            new T.CapsuleGeometry(
+              winter || suit ? 0.4 : 0.35,
+              beach ? 0.4 : 0.65,
+              4,
+              8,
+            ),
+            mat(clothing),
           );
           body.position.y = 0.9;
           g.add(body);
@@ -366,6 +430,86 @@ export default function World({
           );
           head.position.y = 1.7;
           g.add(head);
+          const hair = new T.Mesh(
+            new T.SphereGeometry(0.31, 8, 6),
+            mat("#514335"),
+          );
+          hair.scale.y = 0.6;
+          hair.position.set(0, 1.89, -0.04);
+          g.add(hair);
+          if (suit) {
+            hair.visible = false;
+            const helmet = new T.Mesh(
+              new T.SphereGeometry(0.43, 12, 8),
+              mat("#e6edf1"),
+            );
+            helmet.position.y = 1.74;
+            g.add(helmet);
+            box(0.6, 0.38, 0.14, 0, 1.78, 0.37, "#526b86", g);
+            box(0.45, 0.46, 0.28, 0, 1, -0.43, "#b2c2cf", g);
+            box(0.28, 0.27, 0.1, 0, 1.18, 0.39, colors[i % colors.length], g);
+          } else if (winter) {
+            hair.material = mat(clothing);
+            hair.scale.set(1.1, 1.1, 1.1);
+            const pom = new T.Mesh(
+              new T.SphereGeometry(0.13, 6, 4),
+              mat("#f3e4bc"),
+            );
+            pom.position.y = 2.2;
+            g.add(pom);
+            box(0.55, 0.16, 0.45, 0, 1.47, 0, "#f3e4bc", g);
+          } else if (beach) {
+            const hat = new T.Mesh(
+              new T.CylinderGeometry(0.5, 0.5, 0.07, 12),
+              mat("#e5c783"),
+            );
+            hat.position.y = 1.99;
+            g.add(hat);
+            box(
+              0.52,
+              0.25,
+              0.4,
+              0,
+              0.64,
+              0,
+              colors[(i + 1) % colors.length],
+              g,
+            );
+          }
+          g.userData.outfit = theme.outfit;
+          const limbs: T.Group[] = [];
+          for (const side of [-1, 1]) {
+            const leg = new T.Group();
+            leg.position.set(side * 0.18, 0.6, 0);
+            box(
+              0.22,
+              0.48,
+              0.25,
+              0,
+              -0.24,
+              0,
+              suit ? clothing : beach ? "#e5c09a" : "#405c63",
+              leg,
+            );
+            box(
+              0.25,
+              winter || suit ? 0.22 : 0.13,
+              0.4,
+              0,
+              -0.5,
+              0.06,
+              suit ? "#acb8c7" : beach ? "#d5ac71" : "#4c443b",
+              leg,
+            );
+            g.add(leg);
+            limbs.push(leg);
+            const arm = new T.Group();
+            arm.position.set(side * 0.44, 1.28, 0);
+            box(0.19, 0.5, 0.2, 0, -0.24, 0, beach ? "#e5c09a" : clothing, arm);
+            g.add(arm);
+            limbs.push(arm);
+          }
+          g.userData.limbs = limbs;
           scene.add(g);
           avatars.set(p.id, g);
           g.position.set(p.x, 0, p.z);
@@ -374,25 +518,69 @@ export default function World({
           el.appendChild(label);
           avatarLabels.set(p.id, label);
         }
-        const visual = reduce ? p : visualPosition(p, (now - received.current.at) / 1000);
-        g.position.lerp(new T.Vector3(visual.x, 0, visual.z), reduce ? 1 : smoothingAlpha(frameSeconds));
+        const visual = reduce
+          ? p
+          : visualPosition(p, (now - received.current.at) / 1000);
+        const dx = visual.x - g.position.x,
+          dz = visual.z - g.position.z;
+        const moving = Math.hypot(dx, dz) > 0.025;
+        if (moving) {
+          const heading = Math.atan2(dx, dz);
+          g.rotation.y +=
+            Math.atan2(
+              Math.sin(heading - g.rotation.y),
+              Math.cos(heading - g.rotation.y),
+            ) * (reduce ? 1 : smoothingAlpha(frameSeconds));
+        }
+        g.userData.limbs.forEach((limb: T.Group, index: number) => {
+          limb.rotation.x =
+            !reduce && moving
+              ? Math.sin(now * 0.012 + (index < 2 ? 0 : Math.PI)) *
+                0.45 *
+                (index % 2 ? -1 : 1)
+              : 0;
+        });
+        g.position.lerp(
+          new T.Vector3(visual.x, 0, visual.z),
+          reduce ? 1 : smoothingAlpha(frameSeconds),
+        );
         g.visible = p.online;
         const label = avatarLabels.get(p.id)!;
         label.hidden = !p.online;
         label.textContent = `${p.name}${p.id === s.you ? " (you)" : ""}`;
-        const v = new T.Vector3(g.position.x, 2.8, g.position.z).project(camera);
+        const v = new T.Vector3(g.position.x, 2.8, g.position.z).project(
+          camera,
+        );
+        label.hidden =
+          !p.online ||
+          v.z < -1 ||
+          v.z > 1 ||
+          Math.abs(v.x) > 1 ||
+          Math.abs(v.y) > 1;
         // Legacy saves may have overlapping residents; stagger their labels.
-        const overlaps = s.players.slice(0, i).filter((other: any) => other.online && Math.hypot(other.x - p.x, other.z - p.z) < 1).length;
+        const overlaps = s.players
+          .slice(0, i)
+          .filter(
+            (other: any) =>
+              other.online && Math.hypot(other.x - p.x, other.z - p.z) < 1,
+          ).length;
         label.style.transform = `translate(-50%,-50%) translate(${(v.x * 0.5 + 0.5) * el.clientWidth}px,${(-v.y * 0.5 + 0.5) * el.clientHeight - overlaps * 22}px)`;
         if (p.id === s.you) {
           ring.position.x = g.position.x;
           ring.position.z = g.position.z;
           if (latest.current.follow) {
-            if (!wasFollowing)
-              camera.position.copy(g.position).add(new T.Vector3(15, 19, 21));
-            const shift = g.position.clone().sub(controls.target);
+            if (!wasFollowing) {
+              controls.target.copy(g.position).add(new T.Vector3(0, 1.2, 0));
+              camera.position
+                .copy(controls.target)
+                .add(new T.Vector3(9, 7.5, 12));
+            }
+            const target = g.position.clone().add(new T.Vector3(0, 1.2, 0));
+            const shift = target
+              .sub(controls.target)
+              .multiplyScalar(reduce ? 1 : 1 - Math.exp(-8 * frameSeconds));
             camera.position.add(shift);
-            controls.target.copy(g.position);
+            controls.target.add(shift);
           } else if (wasFollowing) {
             controls.target.set(0, 0, 0);
             camera.position
@@ -406,6 +594,13 @@ export default function World({
         const d = districts[i],
           v = new T.Vector3(d.x, 5.4, d.z - 3).project(camera);
         label.style.transform = `translate(-50%,-50%) translate(${(v.x * 0.5 + 0.5) * el.clientWidth}px,${(-v.y * 0.5 + 0.5) * el.clientHeight}px)`;
+        label.hidden =
+          v.z < -1 ||
+          v.z > 1 ||
+          Math.abs(v.x) > 0.95 ||
+          Math.abs(v.y) > 0.9 ||
+          (latest.current.follow &&
+            camera.position.distanceTo(new T.Vector3(d.x, 0, d.z)) > 32);
         label.classList.toggle("selected", d.id === latest.current.selected);
       });
       controls.update();
@@ -418,13 +613,22 @@ export default function World({
       controls.dispose();
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       renderer.dispose();
+      if (habitat) {
+        scene.remove(habitat.group);
+        habitat.dispose();
+      }
       scene.traverse((o) => {
         if (o instanceof T.Mesh) o.geometry.dispose();
       });
       materials.forEach((m) => m.dispose());
+      scenery.material.dispose();
+      gardenRoof?.material.dispose();
+      ring.material.dispose();
+      renderer.domElement.removeEventListener("pointerdown", pointerDown);
+      renderer.domElement.removeEventListener("pointerup", pointerUp);
       el.replaceChildren();
     };
-  }, []);
+  }, [themeId]);
   return (
     <div
       className="world"

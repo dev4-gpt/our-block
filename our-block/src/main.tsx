@@ -19,6 +19,7 @@ import {
   WorldLoading,
 } from "./Overlays.tsx";
 import DeviceCheck from "./DeviceCheck.tsx";
+import { worldThemes, getWorldTheme, themeColor, type WorldThemeId } from "./world-themes.ts";
 import { commandId } from "./ids.ts";
 import { TownConnection } from "./connection.ts";
 import { RELEASE } from "../shared/release.ts";
@@ -51,7 +52,8 @@ function App() {
     [selected, setSelected] = useState("garden"),
     [tab, setTab] = useState("Explore"),
     [map, setMap] = useState(false),
-    [follow, setFollow] = useState(false),
+    [follow, setFollow] = useState(true),
+    [worldTheme, setWorldTheme] = useState<WorldThemeId>(() => getWorldTheme(localStorage.getItem("our-block-world-theme")).id),
     [connecting, setConnecting] = useState(false),
     [connectionStatus, setConnectionStatus] = useState(""),
     [account, setAccount] = useState("shared"),
@@ -466,6 +468,15 @@ function App() {
         walk. You can also tap the ground. Swipe the button row for more places.
         Drag to turn the view; pinch to zoom.
       </p>
+      <div className="world-switcher">
+        <label>World <select aria-label="World style" value={worldTheme} onChange={e => {
+          const id = getWorldTheme(e.target.value).id;
+          setWorldTheme(id);
+          try { localStorage.setItem("our-block-world-theme", id); } catch { /* Available for this visit even if storage is full. */ }
+        }}>{worldThemes.map(theme => <option key={theme.id} value={theme.id}>{theme.name}</option>)}</select></label>
+        <span role="status">{getWorldTheme(worldTheme).description}</span>
+        <small>Same neighborhood & progress · style for your view</small>
+      </div>
       <main className="play">
         <section className="viewport">
           <div className="scene-top">
@@ -473,7 +484,7 @@ function App() {
               YOUR NEIGHBORHOOD <span>↗ LIVE</span>
             </div>
             <button onClick={() => setFollow(!follow)}>
-              {follow ? "Town view" : "Follow me"}
+              {follow ? "Town overview" : "Walk with me"}
             </button>
             <button onClick={() => setMap(!map)}>
               {map ? "3D world" : "Accessible map"}
@@ -484,7 +495,7 @@ function App() {
               {districts.map((d) => (
                 <button
                   key={d.id}
-                  style={{ background: d.color }}
+                  style={{ background: themeColor(d.color, getWorldTheme(worldTheme)) }}
                   onClick={() => go(d.id)}
                 >
                   <strong>
@@ -506,6 +517,7 @@ function App() {
                 <World
                   state={state}
                   follow={follow}
+                  themeId={worldTheme}
                   selected={selected}
                   onSelect={(id) => {
                     setSelected(id);
