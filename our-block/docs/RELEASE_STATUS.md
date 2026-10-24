@@ -120,4 +120,16 @@ Phone feedback: user reports **60 FPS and minimal freezes** on iPhone/Chrome. Ex
 
 The user corrected the agent's claim that an hour was required. The agent stopped the additional local run; it returned `Interrupted by operator; partial run retained.` The local server on port 3032 was confirmed no longer reachable. The harness did not produce a final structured report, so no completed-hour pass or exact final byte count is claimed. Conservatively charge its full 20,000,000-byte reservation: cumulative campaign accounting **1,047,065,274 bytes**, leaving **2,934,726 bytes** under the approved ceiling. This allowance is an accounting bound, not a measured total. No further optional test is needed for the requested handoff.
 
+### Deployment verification and requested security review
+
+After the user deployed `f9ca3c0`, the public JavaScript/CSS asset hashes matched the tested local build, including themed worlds and enclosed garden habitats. The visible release string remains `2026.10.23-rc1`. The subsequent requested security review used eight small live HTTP reads and isolated local tests. Conservatively charge another **1,000,000 bytes** for the approximately 814 KB deployment asset verification plus small HTTP/local security checks: cumulative accounting **1,048,065,274 bytes**, leaving **1,934,726 bytes**. This is a conservative charge, not packet-level measurement. Dependency-registry traffic is not game-hosting traffic.
+
+Security review: **95 tests passed, one Postgres-specific test skipped; npm audit found zero known advisories**. A local reproduction confirmed unjoined sockets can exhaust admission slots; live HTML lacks framing/security headers. See [security review](SECURITY_REVIEW_2026-10-23.md). No security fixes have been deployed from this review.
+
+### Security fix candidate — 24 October 2026
+
+Candidate release **2026.10.24-rc2** adds bounded pending admissions with a ten-second join deadline, closes failed joins, applies production browser security headers with a Handshake framing allowlist, and restricts detailed metrics to an optional private Bearer token. Public health remains usable by Render and the reconnect flow. Existing town codes, player recovery tokens and database schema remain compatible. See the remediation section of the [security review](SECURITY_REVIEW_2026-10-23.md) for residual limits and metric configuration.
+
+Validation: **97 tests pass, one Postgres-specific test skipped**, plus a final targeted security regression rerun; TypeScript and production build pass. Browser control is disabled in Work settings, so rendered CSP verification and dashboard deployment are pending. No production security change is claimed until Render deploys this candidate.
+
 The challenge form's required title, public URL, description and screenshot cover were all populated and verified. The user said they will submit and requested attachment for their own review. No agent publication is authorized or needed. Remaining optional research/performance observations stay disclosed rather than being turned into entry requirements. The entry form is left for the entrant; no further changes should be made while they review.

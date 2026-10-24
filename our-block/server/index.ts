@@ -2,7 +2,8 @@ import http from "node:http";
 import { validateCommand, errorCode, Budget } from "./validation.ts";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
-import { randomBytes } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { AdmissionGate, securityHeaders } from "./security.ts";
 import { openStore } from "./storage.ts";
 import { TownService } from "./towns.ts";
 import { SimulationClock } from "./simulation-clock.ts";
@@ -32,13 +33,31 @@ const handshakes = new Budget(180, 60000),
   creations = new Budget(30, 3600000);
 let outgoingBytes = 0;
 const prod = process.argv.includes("--production");
+const admissions = new AdmissionGate();
+const metricsToken = process.env.METRICS_TOKEN;
 const vite = prod
   ? null
   : await (
       await import("vite")
     ).createServer({ server: { middlewareMode: true }, appType: "spa" });
 const server = http.createServer((req, res) => {
-  if (req.url === "/health") {
+  securityHeaders(res, prod, req.headers.host);
+  if (req.url === "/metrics") {
+    const provided = Buffer.from(req.headers.authorization || "");
+    const expected = Buffer.from(`Bearer ${metricsToken || ""}`);
+    res.setHeader("Cache-Control", "no-store");
+    if (
+      !metricsToken ||
+      metricsToken.length < 32 ||
+      provided.length !== expected.length ||
+      !timingSafeEqual(provided, expected)
+    ) {
+      res.statusCode = 404;
+      res.end("Not found");
+      return;
+    }
+  }
+  if (req.url === "/health" || req.url === "/metrics") {
     res.statusCode = shuttingDown ? 503 : 200;
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Content-Type", "application/json");
@@ -47,15 +66,19 @@ const server = http.createServer((req, res) => {
         ok: !shuttingDown,
         protocol: 1,
         release: RELEASE,
-        towns: towns.size,
         availability: service.availability,
-        capacity: maxPlayers,
-        online: [...towns.values()].reduce(
-          (n, t) => n + t.players.filter((p) => p.online).length,
-          0,
-        ),
-        outgoingBytes,
-        rss: process.memoryUsage().rss,
+        ...(req.url === "/metrics"
+          ? {
+              towns: towns.size,
+              capacity: maxPlayers,
+              online: [...towns.values()].reduce(
+                (n, t) => n + t.players.filter((p) => p.online).length,
+                0,
+              ),
+              outgoingBytes,
+              rss: process.memoryUsage().rss,
+            }
+          : {}),
       }),
     );
     return;
@@ -113,12 +136,19 @@ const wss = new WebSocketServer({
     req: http.IncomingMessage;
   }) => {
     try {
+      if (!handshakes.take(req.socket.remoteAddress || "unknown")) return false;
       if (
-        !handshakes.take(req.socket.remoteAddress || "unknown") ||
-        wss.clients.size >= maxPlayers + 8
+        origin &&
+        (!["https:", "http:"].includes(new URL(origin).protocol) ||
+          new URL(origin).host !== req.headers.host)
       )
         return false;
-      return !origin || new URL(origin).host === req.headers.host;
+      const reserved = admissions.reserve(
+        req,
+        req.socket.remoteAddress || "unknown",
+      );
+      if (reserved) req.socket.once("close", () => admissions.release(req));
+      return reserved;
     } catch {
       return false;
     }
@@ -149,6 +179,15 @@ function broadcast(t: Town) {
       });
 }
 wss.on("connection", (ws, req) => {
+  // Pongs do not extend this deadline. A peer must complete admission.
+  const joinDeadline = setTimeout(() => {
+    if (!clients.has(ws)) ws.terminate();
+  }, 10000);
+  joinDeadline.unref();
+  const releaseAdmission = () => {
+    clearTimeout(joinDeadline);
+    admissions.release(req);
+  };
   let n = 0,
     start = Date.now(),
     joinedOrJoining = false;
@@ -174,6 +213,7 @@ wss.on("connection", (ws, req) => {
     }
     incoming = incoming
       .then(async () => {
+        if (ws.readyState !== WebSocket.OPEN) return;
         let m: any;
         try {
           try {
@@ -256,12 +296,25 @@ wss.on("connection", (ws, req) => {
                 p.online = true;
                 t.revision++;
                 await service.commit(t);
+                if (ws.readyState !== WebSocket.OPEN) {
+                  if (
+                    !existing?.players.some((x) => x.id === p.id && x.online)
+                  ) {
+                    // Already inside this town's queue: do not enqueue and await
+                    // another operation on the same queue.
+                    const abandoned = structuredClone(t);
+                    disconnect(abandoned, p.id);
+                    await service.commit(abandoned);
+                  }
+                  return;
+                }
                 for (const [old, c] of clients)
                   if (c.code === code && c.id === p.id) {
                     clients.delete(old);
                     old.close(4001, "Seat opened elsewhere");
                   }
                 clients.set(ws, { code, id: p.id });
+                releaseAdmission();
                 send(ws, { type: "joined", code, token: p.token, id: p.id });
                 broadcast(t);
               }),
@@ -301,7 +354,10 @@ wss.on("connection", (ws, req) => {
               ? message
               : "Save unavailable. No action was confirmed. Reconnect and review the town before trying again.",
           });
-          if (!clients.has(ws)) joinedOrJoining = false;
+          if (!clients.has(ws)) {
+            // Do not keep rejected or malformed admissions occupying pending slots.
+            ws.close(1008, "Admission failed");
+          }
           const c = clients.get(ws);
           if (c)
             send(ws, {
@@ -313,6 +369,7 @@ wss.on("connection", (ws, req) => {
       .catch(() => console.error("Socket handler failed."));
   });
   ws.on("close", () => {
+    releaseAdmission();
     void incoming
       .then(async () => {
         const c = clients.get(ws);
@@ -333,7 +390,8 @@ const simulationClock = new SimulationClock(Date.now());
 let saveAt = 0;
 const timer = setInterval(async () => {
   if (shuttingDown) return;
-  const now = Date.now(), dt = simulationClock.begin(now);
+  const now = Date.now(),
+    dt = simulationClock.begin(now);
   if (dt === undefined) return;
   const flush = now - saveAt >= 2000;
   if (flush) saveAt = now;

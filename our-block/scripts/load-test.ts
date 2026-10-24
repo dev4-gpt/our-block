@@ -1,5 +1,6 @@
 /** Real protocol clients. Local default. Public tests require an explicit measured allowance. */
 import { WebSocket } from "ws";
+import { randomBytes } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -7,6 +8,27 @@ import { join } from "node:path";
 const local = !process.env.LOAD_URL,
   port = Number(process.env.LOAD_PORT || 3014),
   origin = process.env.LOAD_URL || `http://127.0.0.1:${port}`;
+const metricsToken = local
+  ? randomBytes(32).toString("hex")
+  : process.env.METRICS_TOKEN;
+if (!metricsToken || metricsToken.length < 32)
+  throw Error(
+    "Memory checks require a private METRICS_TOKEN configured on the server; public health has no memory metrics.",
+  );
+async function readMetrics() {
+  const response = await fetch(origin + "/metrics", {
+    headers: { Authorization: `Bearer ${metricsToken}` },
+    redirect: "error",
+    signal: AbortSignal.timeout(10000),
+  });
+  const raw = await response.text();
+  bytes += Buffer.byteLength(raw);
+  if (!response.ok) throw Error("Private server metrics unavailable.");
+  const sample = JSON.parse(raw);
+  if (!Number.isFinite(sample.rss) || sample.rss <= 0)
+    throw Error("Memory measurement unavailable.");
+  return sample;
+}
 const stages = (process.env.LOAD_STAGES || "4,20,50,100")
     .split(",")
     .map(Number),
@@ -182,6 +204,7 @@ try {
           DATA_DIR: temporary,
           DATABASE_URL: "",
           MAX_PLAYERS: "100",
+          METRICS_TOKEN: metricsToken,
         },
         stdio: ["ignore", "pipe", "pipe"],
       },
@@ -308,7 +331,7 @@ try {
           await p.close();
           await p.connect();
         }
-      const h = (await (await fetch(origin + "/health")).json()) as any;
+      const h = await readMetrics();
       peakRss = Math.max(peakRss, h.rss || 0);
       if (h.rss > 400 * 1024 * 1024) {
         memorySince ||= Date.now();
@@ -333,10 +356,7 @@ try {
         await sleep(Math.min(5000, wake - Date.now()));
         check();
         if (sparse) {
-          const health = await fetch(origin + "/health");
-          const raw = await health.text();
-          bytes += Buffer.byteLength(raw);
-          const sample = JSON.parse(raw);
+          const sample = await readMetrics();
           peakRss = Math.max(peakRss, sample.rss || 0);
           if (sample.rss > 400 * 1024 * 1024) {
             memorySince ||= Date.now();
