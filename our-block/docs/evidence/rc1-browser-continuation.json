@@ -1,0 +1,36 @@
+{
+  "source": "bb8d076fc0cb5542ab8cc5b1902ca0e229c13ff1",
+  "scope": "resumed local browser journey; two new software-controlled residents in saved B29DFC; no unfamiliar/physical players",
+  "startFunds": 356,
+  "newPurchases": [
+    {
+      "item": "seed",
+      "cost": 12
+    },
+    {
+      "item": "pack",
+      "cost": 6
+    },
+    {
+      "item": "filter",
+      "cost": 4
+    },
+    {
+      "item": "lamp",
+      "cost": 24
+    }
+  ],
+  "eveningReward": 90,
+  "finalFunds": 400,
+  "gardenComplete": true,
+  "marketComplete": true,
+  "eveningComplete": true,
+  "refreshRecoveredFundsAndAllOutcomes": true,
+  "freshPendingNoticeAfterHistoricalApproval": true,
+  "allThreeProjectsContinuousSession": false,
+  "limitations": [
+    "Original Garden/Market run was interrupted at traffic ceiling.",
+    "Original browser seats were not recovered in this continuation; new residents acquired their own final delivery supplies.",
+    "Final-source soak and physical-phone results remain open."
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "source": "bb8d076fc0cb5542ab8cc5b1902ca0e229c13ff1",
+  "release": "2026.10.23-rc1",
+  "deployment": "dep-dbdvf3navr4c739id4kg",
+  "renderStatus": "Deploy succeeded | Live",
+  "renderDurationSeconds": 42.2,
+  "localDeploymentTime": "2026-10-23 20:10:54 America/New_York",
+  "health": {
+    "ok": true,
+    "protocol": 1,
+    "release": "2026.10.23-rc1",
+    "availability": "ready",
+    "capacity": 4
+  },
+  "publicSeatRecovery": {
+    "town": "F948C3",
+    "funds": 337,
+    "gardenComplete": true
+  },
+  "backup": {
+    "towns": 7,
+    "receipts": 19,
+    "freshExportRestored": true,
+    "exactPreviousLiveSourceArchived": true
+  },
+  "publicTrafficAccounting": {
+    "serverOutgoingBytesAtLastCheck": 115130,
+    "httpAndUnmeasuredTrafficAllowance": 1000000,
+    "chargedBytes": 1115130,
+    "limitations": "Server counter includes service-wide WebSocket outgoing traffic since this deployment; HTTP/inbound overhead uses a conservative allowance, not a direct byte measurement."
+  },
+  "mobileLayout": {
+    "desktopViewportWidth": 375,
+    "documentWidth": 375,
+    "bodyWidth": 375,
+    "keyboardMapToggle": true,
+    "physicalPhonePerformance": "pending user run"
+  },
+  "cover": "submission/cover-rc1-gameplay-1200x800.png",
+  "submission": "not submitted"
+}

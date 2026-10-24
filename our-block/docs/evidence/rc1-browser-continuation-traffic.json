@@ -1,0 +1,12 @@
+{
+  "started": "2026-10-24T00:08:18.980Z",
+  "updated": "2026-10-24T00:13:00.651Z",
+  "source": "bb8d076",
+  "scope": "local production browser verification; TCP bytes including HTTP and WebSockets",
+  "budget": 15000000,
+  "inbound": 18223,
+  "outbound": 12761440,
+  "total": 12779663,
+  "stopped": false,
+  "reason": "Server stopped"
+}
