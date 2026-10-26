@@ -1,6 +1,6 @@
 # Same neighborhood, seven worlds
 
-Local visual preview, October 23, 2026. Not deployed; the prepared Handshake entry and public rc1 remain unchanged.
+Implemented October 23, 2026 and deployed publicly. Security release `2026.10.24-rc2` was subsequently verified live; submission text is maintained in `submission/`.
 
 Use the **World** dropdown above the game. It switches the scenery, palette and every visible resident's outfit together. The preference is remembered on this browser. It is a personal visual style: another resident can choose a different view of the same shared town. Switching never sends a game command, changes inventory, resets projects or relocates a district.
 
