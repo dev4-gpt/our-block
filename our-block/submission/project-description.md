@@ -1,7 +1,7 @@
 # OUR BLOCK — Build a Neighborhood Together
 
 Play: https://our-block-1ooe.onrender.com/
-Source (private repository; authorized access required): https://github.com/dev4-gpt/our-block/tree/codex/cloud-hosting
+Source (public repository): https://github.com/dev4-gpt/our-block/tree/codex/cloud-hosting
 
 OUR BLOCK is a persistent cooperative 3D browser game for one to four friends. Instead of competing for the highest score, neighbors work together to turn a small town into a thriving community. Explore six connected districts, earn fictional credits, share supplies and make decisions that affect everyone.
 

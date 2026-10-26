@@ -3,7 +3,7 @@
 Current project title: **OUR BLOCK — Build a Neighborhood Together**.
 
 - [Play the public game](https://our-block-1ooe.onrender.com/)
-- [GitHub source branch — private, authorized access required](https://github.com/dev4-gpt/our-block/tree/codex/cloud-hosting)
+- [GitHub source branch — public](https://github.com/dev4-gpt/our-block/tree/codex/cloud-hosting)
 - [Handshake showcase project](https://app.joinhandshake.com/ai-showcase/projects/3670200)
 - [Handshake submission editor](https://app.joinhandshake.com/learn/create-a-multiplayer-game-8d7d59b5/submit) (sign-in may be required)
 - [Support](https://our-block-1ooe.onrender.com/support.html), [privacy](https://our-block-1ooe.onrender.com/privacy.txt), [credits](https://our-block-1ooe.onrender.com/credits.txt)
@@ -36,4 +36,4 @@ Security release `f889f9d` was verified live on October 24: public health report
 
 See [release status](../docs/RELEASE_STATUS.md) and [security review](../docs/SECURITY_REVIEW_2026-10-23.md). Free hosting supports four online residents total and may sleep. No one-hour run is an official requirement established by this project. The entrant controls final submission and social publishing; this asset update does not publish either.
 
-Link check on October 25: game, support, privacy, credits and Handshake showcase returned HTTP 200. GitHub was confirmed through the signed-in account as `dev4-gpt/our-block`, private, with branch `codex/cloud-hosting`; anonymous HTTP 404 is expected and does not mean the repository link is misspelled. Twenty-six local Markdown destinations in the current README/submission copy were checked for existence. No repository visibility was changed.
+Link checks: on October 25, game, support, privacy, credits and Handshake showcase returned HTTP 200; 26 local Markdown destinations were checked for existence. On October 26, the user authorized changing `dev4-gpt/our-block` from private to public. GitHub confirmed public visibility, and the source branch returned HTTP 200 without authentication. A targeted scan of reachable local Git history found only placeholder/test database credentials and no unexplained credential candidates; private ignored backups were not published.

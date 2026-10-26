@@ -36,7 +36,7 @@ Choose from seven visual worlds: Forest, City, Snowy Mountains, Island & Beach, 
 Cross-device playtests helped improve touch controls and saved-seat recovery. The game also includes an accessible map and both untimed exploration and a daily-life mode.
 
 Play: https://our-block-1ooe.onrender.com/
-Source (private repository; authorized access required): https://github.com/dev4-gpt/our-block/tree/codex/cloud-hosting
+Source (public repository): https://github.com/dev4-gpt/our-block/tree/codex/cloud-hosting
 
 Try the garden project with a friend and let me know which decision was hardest to make together.
 
