@@ -133,3 +133,8 @@ Candidate release **2026.10.24-rc2** adds bounded pending admissions with a ten-
 Validation: **97 tests pass, one Postgres-specific test skipped**, plus a final targeted security regression rerun; TypeScript and production build pass. Browser control is disabled in Work settings, so rendered CSP verification and dashboard deployment are pending. No production security change is claimed until Render deploys this candidate.
 
 The challenge form's required title, public URL, description and screenshot cover were all populated and verified. The user said they will submit and requested attachment for their own review. No agent publication is authorized or needed. Remaining optional research/performance observations stay disclosed rather than being turned into entry requirements. The entry form is left for the entrant; no further changes should be made while they review.
+
+
+## Public deployment confirmation and screenshot handoff — October 25, 2026
+
+Release `2026.10.24-rc2` was verified live on October 24, with production security headers and `/metrics` returning 404 without authentication. On October 25, all seven worlds were selected and captured from the public game. See [current submission assets](../submission/README.md) for copy, screenshot provenance and public links. Earlier pending-deployment/browser notes above are historical. Final competition/social publication has not been independently confirmed.

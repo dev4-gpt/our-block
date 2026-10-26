@@ -51,13 +51,13 @@ The Node server owns movement paths, inventory, economy, deadlines and approvals
 
 Saves use schema 3. Older schema-1/schema-2 saves migrate on load and retain their balances and belongings; incomplete historical totals are labeled. Unknown schemas reject loading that town rather than overwrite it. Snapshot projection excludes seat tokens and duplicate-action history.
 
-Dockerfile and render.yaml are included. The updated Render blueprint uses Free compute and requires a server-only DATABASE_URL for Neon Postgres; the existing public prototype is deployed, but this release candidate requires its own backup and manual redeploy. Local development still uses SQLite. Keep one replica. See [cloud deployment runbook](docs/CLOUD_DEPLOYMENT.md). /health reports process status. Back up SQLite before upgrades. Modest local rate limits and a 500-town ceiling are for prototype evaluation, not large public matchmaking.
+Dockerfile and render.yaml are included. The updated Render blueprint uses Free compute and requires a server-only DATABASE_URL for Neon Postgres; the public security release `2026.10.24-rc2` is deployed and was verified live. Local development still uses SQLite. Keep one replica. See [cloud deployment runbook](docs/CLOUD_DEPLOYMENT.md). /health reports process status. Back up SQLite before upgrades. Modest local rate limits and a 500-town ceiling are for prototype evaluation, not large public matchmaking.
 
 ## Honest release status
 
 Implemented: local browser prototype with six connected districts, 19 activities, 12 upgrades, three projects with two supply variants, four-seat server, persistent economy, browser 3D and map UI, and Unity client source.
 
-Release readiness is tracked in [the release plan and evidence](docs/RELEASE_PLAN.md). Physical-device testing, unfamiliar pairs, learning-transfer observations, current-candidate public load/redeploy tests, the one-hour soak and real gameplay capture remain gates. A previous macOS Unity cloud build succeeded; the downloaded player is experimental and local gameplay stopped at the user-reported Gatekeeper warning. Windows and mixed-client projects remain unverified.
+Current release evidence is tracked in [release status](docs/RELEASE_STATUS.md); [the release plan](docs/RELEASE_PLAN.md) preserves earlier planning. Real gameplay screenshots of all seven world styles are available in [submission assets](submission/README.md). Independent-player research, learning-transfer evidence and additional device benchmarks are not established by those screenshots. The optional hour-long run is not an official competition requirement. A previous macOS Unity cloud build succeeded; the downloaded player is experimental and local gameplay stopped at the user-reported Gatekeeper warning. Windows and mixed-client projects remain unverified.
 
 No learning-effectiveness or prize guarantee is claimed. See GAME_DESIGN.md and PROTOCOL.md for content and integration details.
 
@@ -69,3 +69,5 @@ Polish candidate: Explore has Town / Activities / Shop navigation. Purchases ope
 Schema 3 adds server-owned refundable purchase lots, project contributions and outcome summaries. Purchase lots retain paid price, original payer and inventory location through gifts/storage. Free/legacy units are consumed first, then oldest purchased units. Only a complete unused purchased offer quantity can be refunded, to its original payer. Legacy inventory remains usable but has no invented refundable history. Snapshot fields `refundable`, `refundAmounts`, `evidenceDocuments`, `projectWork` and `outcomes` are additive protocol-v1 fields. Internal `lots`, seat tokens and duplicate history are omitted. `ping.item` optionally references already-discovered evidence. Stable rule codes include `PENDING_APPROVAL`, `DISTANCE`, `INSUFFICIENT_FUNDS`, `INVENTORY_FULL` and `NOT_REFUNDABLE`. Existing command shapes and full-state fallback remain available.
 
 Repeat garden commissions change the service-part prices and evidence; the browser uses the shared authored catalog. Existing Unity source/binaries have not been validated against replay-price presentation; Unity remains experimental. Exporting a base catalog alone is not a claim of replay UI support.
+
+Current submission title, descriptions, post drafts and seven-world previews: [submission assets and verified links](submission/README.md).
